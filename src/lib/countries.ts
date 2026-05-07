@@ -1,0 +1,36 @@
+export const countries = [
+  "Afghanistan","Albania","Algeria","Andorra","Angola","Argentina","Armenia","Australia","Austria","Azerbaijan",
+  "Bahamas","Bahrain","Bangladesh","Barbados","Belarus","Belgium","Belize","Benin","Bhutan","Bolivia",
+  "Bosnia and Herzegovina","Botswana","Brazil","Brunei","Bulgaria","Burkina Faso","Burundi","Cambodia","Cameroon","Canada",
+  "Central African Republic","Chad","Chile","China","Colombia","Comoros","Congo","Costa Rica","Croatia","Cuba",
+  "Cyprus","Czech Republic","Denmark","Djibouti","Dominican Republic","Ecuador","Egypt","El Salvador","Equatorial Guinea","Eritrea",
+  "Estonia","Eswatini","Ethiopia","Fiji","Finland","France","Gabon","Gambia","Georgia","Germany",
+  "Ghana","Greece","Guatemala","Guinea","Guyana","Haiti","Honduras","Hungary","Iceland","India",
+  "Indonesia","Iran","Iraq","Ireland","Israel","Italy","Jamaica","Japan","Jordan","Kazakhstan",
+  "Kenya","Kuwait","Kyrgyzstan","Laos","Latvia","Lebanon","Liberia","Libya","Lithuania","Luxembourg",
+  "Madagascar","Malawi","Malaysia","Maldives","Mali","Malta","Mauritania","Mauritius","Mexico","Moldova",
+  "Monaco","Mongolia","Montenegro","Morocco","Mozambique","Myanmar","Namibia","Nepal","Netherlands","New Zealand",
+  "Nicaragua","Niger","Nigeria","North Macedonia","Norway","Oman","Pakistan","Palestine","Panama","Papua New Guinea",
+  "Paraguay","Peru","Philippines","Poland","Portugal","Qatar","Romania","Russia","Rwanda","Saudi Arabia",
+  "Senegal","Serbia","Sierra Leone","Singapore","Slovakia","Slovenia","Somalia","South Africa","South Korea","Spain",
+  "Sri Lanka","Sudan","Suriname","Sweden","Switzerland","Syria","Taiwan","Tajikistan","Tanzania","Thailand",
+  "Togo","Trinidad and Tobago","Tunisia","Turkey","Turkmenistan","Uganda","Ukraine","United Arab Emirates","United Kingdom","United States",
+  "Uruguay","Uzbekistan","Venezuela","Vietnam","Yemen","Zambia","Zimbabwe"
+];
+
+export const phoneFormats: Record<string, { digits: number; code: string }> = {
+  "India": { digits: 10, code: "+91" },
+  "United States": { digits: 10, code: "+1" },
+  "United Kingdom": { digits: 10, code: "+44" },
+  "United Arab Emirates": { digits: 9, code: "+971" },
+  "Saudi Arabia": { digits: 9, code: "+966" },
+  "Australia": { digits: 9, code: "+61" },
+  "Canada": { digits: 10, code: "+1" },
+  "Germany": { digits: 11, code: "+49" },
+  "France": { digits: 9, code: "+33" },
+  "Japan": { digits: 10, code: "+81" },
+  "China": { digits: 11, code: "+86" },
+  "Singapore": { digits: 8, code: "+65" },
+  "Malaysia": { digits: 10, code: "+60" },
+  "Sri Lanka": { digits: 9, code: "+94" },
+};

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">shastikaapp</string>
+    <string name="title_activity_main">shastikaapp</string>
+    <string name="package_name">com.shastika.shastikaapp</string>
+    <string name="custom_url_scheme">com.shastika.shastikaapp</string>
+</resources>
