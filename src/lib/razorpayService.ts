@@ -2,7 +2,7 @@ import { db } from './firebase';
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
 
 // API endpoint - matches your backend configuration
-const PAYMENT_API = import.meta.env.VITE_PAYMENT_API_URL || 'http://localhost:3001';
+const PAYMENT_API = import.meta.env.VITE_PAYMENT_API_URL || window.location.origin;
 
 /**
  * Razorpay Payment Interfaces
