@@ -39,7 +39,7 @@ const PORT = process.env.PORT || 3001;
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: [process.env.FRONTEND_URL || 'http://localhost:5173', 'https://app-final-m3aab5mpj-nethra681-gits-projects.vercel.app'],
+    origin: [process.env.FRONTEND_URL || 'http://localhost:5173', 'https://app-final-e6hl5l67b-nethra681-gits-projects.vercel.app'],
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -48,7 +48,7 @@ const io = new Server(httpServer, {
 
 // Middleware
 app.use(cors({
-  origin: [process.env.FRONTEND_URL || 'http://localhost:5173', 'https://app-final-m3aab5mpj-nethra681-gits-projects.vercel.app'],
+  origin: [process.env.FRONTEND_URL || 'http://localhost:5173', 'https://app-final-e6hl5l67b-nethra681-gits-projects.vercel.app'],
   credentials: true,
 }));
 app.use(express.json());
