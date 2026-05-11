@@ -37,20 +37,31 @@ const PORT = process.env.PORT || 3001;
 
 // Create HTTP server with Socket.io
 const httpServer = createServer(app);
-const io = new Server(httpServer, {
-  cors: {
-    origin: [process.env.FRONTEND_URL || 'http://localhost:5173', 'https://app-final-e6hl5l67b-nethra681-gits-projects.vercel.app'],
-    methods: ['GET', 'POST'],
-    credentials: true,
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'https://app-final-e6hl5l67b-nethra681-gits-projects.vercel.app'
+];
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin or from allowed production/localhost domains
+    if (!origin || allowedOrigins.includes(origin) || (origin && origin.startsWith('http://localhost:'))) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
   },
+  methods: ['GET', 'POST'],
+  credentials: true,
+};
+
+const io = new Server(httpServer, {
+  cors: corsOptions,
   transports: ['websocket', 'polling'],
 });
 
 // Middleware
-app.use(cors({
-  origin: [process.env.FRONTEND_URL || 'http://localhost:5173', 'https://app-final-e6hl5l67b-nethra681-gits-projects.vercel.app'],
-  credentials: true,
-}));
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Initialize Razorpay instance - NEVER expose these keys to frontend
