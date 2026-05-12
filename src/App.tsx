@@ -6,6 +6,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useStore } from "@/lib/store";
 import { useProtectedRoute } from "@/hooks/useProtectedRoute";
+import { useEffect, useState } from "react";
+import { onAuthStateChanged } from "firebase/auth";
+import { getDoc, doc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 import AppLayout from "@/components/AppLayout";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -25,8 +29,6 @@ import FarmerDashboard from "./pages/FarmerDashboard";
 import PaymentConfirmation from "./pages/PaymentConfirmation";
 import WaitingForApproval from "./pages/WaitingForApproval";
 import NotFound from "./pages/NotFound";
-
-console.log("CLICK WORKING");
 
 const queryClient = new QueryClient();
 
@@ -75,35 +77,83 @@ const FarmerRoute = ({ children }: { children: React.ReactNode }) => {
   return <AppLayout>{children}</AppLayout>;
 };
 
+// ✅ Firebase auth state restore பண்ணு
+const AuthInitializer = ({ children }: { children: React.ReactNode }) => {
+  const { setCurrentUser, currentUser } = useStore();
+  const [authChecked, setAuthChecked] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser && !currentUser) {
+        try {
+          const userRef = doc(db, 'users', firebaseUser.uid);
+          const userSnap = await getDoc(userRef);
+          if (userSnap.exists()) {
+            const userData = userSnap.data();
+            setCurrentUser({
+              id: firebaseUser.uid,
+              name: userData.name || firebaseUser.displayName || '',
+              email: userData.email || firebaseUser.email || '',
+              phone: userData.phone || '',
+              country: userData.country || 'India',
+              role: userData.role || 'buyer',
+              status: userData.status || 'pending',
+              userType: userData.userType || 'domestic',
+              verified: true,
+            });
+          }
+        } catch (error) {
+          console.error('Auth restore error:', error);
+        }
+      }
+      setAuthChecked(true);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  if (!authChecked) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="animate-pulse text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Login />} />
-          <Route path="/waiting-for-approval" element={<WaitingForApproval />} />
-          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/marketplace" element={<ProtectedRoute><Marketplace /></ProtectedRoute>} />
-          <Route path="/product/:id" element={<ProtectedRoute><ProductDetail /></ProtectedRoute>} />
-          <Route path="/order/:id" element={<ProtectedRoute><OrderPage /></ProtectedRoute>} />
-          <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
-          <Route path="/payment-confirmation" element={<ProtectedRoute><PaymentConfirmation /></ProtectedRoute>} />
-          <Route path="/payments" element={<ProtectedRoute><Payments /></ProtectedRoute>} />
-          <Route path="/shipment" element={<ProtectedRoute><Shipment /></ProtectedRoute>} />
-          <Route path="/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
-          <Route path="/shastika-chatbot" element={<ProtectedRoute><ShastikaChatbot /></ProtectedRoute>} />
-          <Route path="/verification" element={<ProtectedRoute><Verification /></ProtectedRoute>} />
-          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-          <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
-          <Route path="/farmer-dashboard" element={<FarmerRoute><FarmerDashboard /></FarmerRoute>} />
-          <Route path="/admin" element={<AdminRoute><AdminPanel /></AdminRoute>} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthInitializer>
+          <Routes>
+            <Route path="/" element={<Login />} />
+            <Route path="/waiting-for-approval" element={<WaitingForApproval />} />
+            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/marketplace" element={<ProtectedRoute><Marketplace /></ProtectedRoute>} />
+            <Route path="/product/:id" element={<ProtectedRoute><ProductDetail /></ProtectedRoute>} />
+            <Route path="/order/:id" element={<ProtectedRoute><OrderPage /></ProtectedRoute>} />
+            <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
+            <Route path="/payment-confirmation" element={<ProtectedRoute><PaymentConfirmation /></ProtectedRoute>} />
+            <Route path="/payments" element={<ProtectedRoute><Payments /></ProtectedRoute>} />
+            <Route path="/shipment" element={<ProtectedRoute><Shipment /></ProtectedRoute>} />
+            <Route path="/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
+            <Route path="/shastika-chatbot" element={<ProtectedRoute><ShastikaChatbot /></ProtectedRoute>} />
+            <Route path="/verification" element={<ProtectedRoute><Verification /></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+            <Route path="/farmer-dashboard" element={<FarmerRoute><FarmerDashboard /></FarmerRoute>} />
+            <Route path="/admin" element={<AdminRoute><AdminPanel /></AdminRoute>} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthInitializer>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
 );
 
-export default App; 
+export default App;
