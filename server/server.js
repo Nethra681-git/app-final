@@ -37,20 +37,11 @@ const PORT = process.env.PORT || 3001;
 
 // Create HTTP server with Socket.io
 const httpServer = createServer(app);
-const allowedOrigins = [
-  process.env.FRONTEND_URL,
-  'https://app-final-e6hl5l67b-nethra681-gits-projects.vercel.app'
-];
-
 const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin or from allowed production/localhost domains
-    if (!origin || allowedOrigins.includes(origin) || (origin && origin.startsWith('http://localhost:'))) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: [
+    'https://app-final-eta.vercel.app',
+    'http://localhost:5173'
+  ],
   methods: ['GET', 'POST'],
   credentials: true,
 };
