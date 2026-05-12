@@ -22,7 +22,6 @@ const OrderPage = () => {
   const [shippingMethod, setShippingMethod] = useState<'sea' | 'air'>('sea');
   const [step, setStep] = useState<'details' | 'payment' | 'confirmed'>('details');
   const [orderId, setOrderId] = useState('');
-  const [txnId, setTxnId] = useState('');
 
   if (!product || !currentUser) return <div className="text-center py-20 text-muted-foreground">Not available</div>;
 
@@ -80,41 +79,6 @@ const OrderPage = () => {
     setStep('payment');
   };
 
-  const handlePaymentDone = () => {
-    if (!txnId.trim()) return;
-
-    const firebaseUid = auth.currentUser?.uid || currentUser.id;
-
-    markOrderPaymentComplete(orderId);
-    addPayment({
-      id: `PAY-${Date.now()}`,
-      orderId,
-      buyerId: firebaseUid,
-      buyerName: currentUser.name,
-      buyerEmail: currentUser.email,
-      buyerPhone: currentUser.phone,
-      amount: total,
-      method: 'upi',
-      transactionId: txnId.trim(),
-      utrNumber: txnId.trim(),
-      bankName: 'UPI',
-      status: 'pending',
-      timestamp: new Date().toLocaleString(),
-      adminNote: '',
-    });
-
-    addNotification({
-      id: `n${Date.now() + 2}`,
-      title: 'Payment Received',
-      message: `${currentUser.name} paid ₹${total.toLocaleString()} via UPI for order ${orderId}. UTR: ${txnId.trim()}`,
-      timestamp: new Date().toLocaleString(),
-      read: false,
-      targetRoles: ['admin'],
-    });
-
-    setStep('confirmed');
-  };
-
   const handleRazorpay = async () => {
     try {
       const loadScript = () => new Promise((resolve) => {
@@ -129,7 +93,6 @@ const OrderPage = () => {
       const loaded = await loadScript();
       if (!loaded) { alert('Failed to load payment gateway'); return; }
 
-      // ✅ FIX: localhost:3001 பதிலா API_BASE_URL use பண்றோம்
       const res = await fetch(`${API_BASE_URL}/api/razorpay/create-order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -201,7 +164,7 @@ const OrderPage = () => {
     );
   }
 
-  // Step 2: UPI Payment
+  // Step 2: Payment
   if (step === 'payment') {
     return (
       <div className="w-full max-w-2xl mx-auto space-y-6 animate-fade-in mb-20">
@@ -231,30 +194,8 @@ const OrderPage = () => {
             <p className="text-xs text-muted-foreground">1. Open any UPI app (Google Pay, PhonePe, Paytm)</p>
             <p className="text-xs text-muted-foreground">2. Scan the QR code above OR enter UPI ID manually</p>
             <p className="text-xs text-muted-foreground">3. Enter amount ₹{total.toLocaleString()} and complete payment</p>
-            <p className="text-xs text-muted-foreground">4. Copy the UTR/Transaction ID after payment</p>
-            <p className="text-xs text-muted-foreground">5. Paste it below and click confirm</p>
           </div>
         </div>
-
-        {/* UTR Confirm */}
-        <div className="glass-card rounded-xl p-6 space-y-4">
-          <h3 className="font-semibold text-foreground">Confirm Your Payment</h3>
-          <input
-            className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground outline-none focus:ring-2 focus:ring-primary/30"
-            placeholder="Enter UTR / Transaction ID"
-            value={txnId}
-            onChange={e => setTxnId(e.target.value)}
-          />
-          <button
-            onClick={handlePaymentDone}
-            disabled={!txnId.trim()}
-            className={`w-full py-3 rounded-lg font-medium transition ${txnId.trim() ? 'gradient-primary text-primary-foreground hover:opacity-90' : 'bg-muted text-muted-foreground cursor-not-allowed'}`}
-          >
-            ✅ I Have Paid — Confirm Order
-          </button>
-        </div>
-
-        <div className="text-center text-sm text-muted-foreground py-2">OR</div>
 
         <div className="glass-card rounded-xl p-6">
           <button onClick={handleRazorpay}
