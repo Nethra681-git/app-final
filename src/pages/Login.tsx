@@ -23,8 +23,12 @@ const LOGIN_ROLES: { value: UserRole; label: string; emoji: string; desc: string
   { value: 'admin',  label: 'Admin',  emoji: '🛡️', desc: 'Manage the platform' },
 ];
 
-// ✅ Detect mobile browser
-const isMobile = () => /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+// ✅ Detect mobile browser (but NOT Capacitor APK)
+const isMobile = () => {
+  const isCapacitor = !!(window as any).Capacitor;
+  if (isCapacitor) return false; // APK-ல் எப்பவும் popup use பண்ணு
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+};
 
 const Login = () => {
   const { t } = useTranslation();
@@ -53,7 +57,7 @@ const Login = () => {
       try {
         setGoogleLoading(true);
         const result = await getRedirectResult(auth);
-        if (!result) return; // No redirect in progress
+        if (!result) return;
 
         const googleUser = result.user;
         const savedRole = (sessionStorage.getItem('googleRoleSelected') as UserRole) || 'buyer';
@@ -217,7 +221,7 @@ const Login = () => {
     setShowGoogleRoleModal(true);
   };
 
-  // ✅ Mobile → signInWithRedirect | Desktop → signInWithPopup
+  // ✅ APK-ல் எப்பவும் popup | Mobile browser-ல் redirect
   const handleGoogleSignIn = async () => {
     setShowGoogleRoleModal(false);
     try {
@@ -227,13 +231,12 @@ const Login = () => {
       const provider = new GoogleAuthProvider();
 
       if (isMobile()) {
-        // Save role before redirect — page will reload after Google auth!
         sessionStorage.setItem('googleRoleSelected', googleRoleSelected);
         await signInWithRedirect(auth, provider);
-        return; // Page redirects, code below won't run
+        return;
       }
 
-      // Desktop: popup works fine
+      // Desktop + APK: popup
       const result = await signInWithPopup(auth, provider);
       const googleUser = result.user;
 
@@ -294,7 +297,6 @@ const Login = () => {
         style={{ backgroundColor: 'hsl(var(--card))' }}
         onKeyDown={onKeyDown}
       >
-        {/* Logo */}
         <div className="flex flex-col items-center mb-8">
           <div className="w-20 h-20 rounded-2xl flex items-center justify-center mb-5 shadow-2xl"
             style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)))', boxShadow: '0 0 30px hsla(var(--primary), 0.4)' }}>
@@ -316,7 +318,6 @@ const Login = () => {
           </div>
         )}
 
-        {/* ─── SIGNUP FORM ─── */}
         {isSignup ? (
           <div className="space-y-4">
             <div>
@@ -377,68 +378,39 @@ const Login = () => {
               <button onClick={() => setIsSignup(false)} className="text-primary font-semibold hover:text-secondary transition">{t('signIn')}</button>
             </p>
           </div>
-
         ) : (
-          /* ─── LOGIN FORM ─── */
           <div className="space-y-5">
             <div>
               <label className="text-sm font-semibold text-foreground mb-2 block">{t('emailAddress')}</label>
-              <input
-                type="email"
-                className={inputClass}
-                style={inputStyle}
-                value={email}
-                onChange={e => handleEmailChange(e.target.value)}
-                placeholder="you@example.com"
-                onFocus={e => e.currentTarget.style.boxShadow = focusStyle}
-                onBlur={e => e.currentTarget.style.boxShadow = inputStyle.boxShadow}
-              />
+              <input type="email" className={inputClass} style={inputStyle} value={email}
+                onChange={e => handleEmailChange(e.target.value)} placeholder="you@example.com"
+                onFocus={e => e.currentTarget.style.boxShadow = focusStyle} onBlur={e => e.currentTarget.style.boxShadow = inputStyle.boxShadow} />
               {errors.email && <p className="text-destructive text-xs mt-1.5 font-medium">{errors.email}</p>}
             </div>
 
             {showRoleSelect && (
               <div className="animate-fade-in">
-                <label className="text-sm font-semibold text-foreground mb-2 block">
-                  I am a... <span className="text-primary">*</span>
-                </label>
+                <label className="text-sm font-semibold text-foreground mb-2 block">I am a... <span className="text-primary">*</span></label>
                 <div className="grid grid-cols-3 gap-2">
                   {LOGIN_ROLES.map(r => (
-                    <button
-                      key={r.value}
-                      type="button"
-                      onClick={() => setLoginRole(r.value)}
+                    <button key={r.value} type="button" onClick={() => setLoginRole(r.value)}
                       className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all text-center
-                        ${loginRole === r.value
-                          ? 'border-primary bg-primary/15 shadow-md scale-105'
-                          : 'border-primary/20 bg-background/50 hover:border-primary/50 hover:bg-primary/5'
-                        }`}
-                    >
+                        ${loginRole === r.value ? 'border-primary bg-primary/15 shadow-md scale-105' : 'border-primary/20 bg-background/50 hover:border-primary/50 hover:bg-primary/5'}`}>
                       <span className="text-2xl">{r.emoji}</span>
-                      <span className={`text-xs font-bold ${loginRole === r.value ? 'text-primary' : 'text-foreground'}`}>
-                        {r.label}
-                      </span>
+                      <span className={`text-xs font-bold ${loginRole === r.value ? 'text-primary' : 'text-foreground'}`}>{r.label}</span>
                     </button>
                   ))}
                 </div>
-                <p className="text-xs text-muted-foreground mt-2 text-center">
-                  {LOGIN_ROLES.find(r => r.value === loginRole)?.desc}
-                </p>
+                <p className="text-xs text-muted-foreground mt-2 text-center">{LOGIN_ROLES.find(r => r.value === loginRole)?.desc}</p>
               </div>
             )}
 
             <div>
               <label className="text-sm font-semibold text-foreground mb-2 block">{t('password')}</label>
               <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  className={`${inputClass} pr-12`}
-                  style={inputStyle}
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  onFocus={e => e.currentTarget.style.boxShadow = focusStyle}
-                  onBlur={e => e.currentTarget.style.boxShadow = inputStyle.boxShadow}
-                />
+                <input type={showPassword ? 'text' : 'password'} className={`${inputClass} pr-12`} style={inputStyle} value={password}
+                  onChange={e => setPassword(e.target.value)} placeholder="••••••••"
+                  onFocus={e => e.currentTarget.style.boxShadow = focusStyle} onBlur={e => e.currentTarget.style.boxShadow = inputStyle.boxShadow} />
                 <button type="button" onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition">
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -459,9 +431,7 @@ const Login = () => {
             )}
 
             <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border/40"></div>
-              </div>
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border/40"></div></div>
               <div className="relative flex justify-center text-sm">
                 <span className="px-3 text-muted-foreground font-medium" style={{ backgroundColor: 'hsl(var(--card))' }}>{t('orContinueWith')}</span>
               </div>
@@ -486,7 +456,6 @@ const Login = () => {
         )}
       </div>
 
-      {/* ✅ Google Role Select Modal */}
       {showGoogleRoleModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}>
           <div className="w-full max-w-sm rounded-2xl p-6 border border-primary/30 shadow-2xl animate-fade-in" style={{ backgroundColor: 'hsl(var(--card))' }}>
@@ -497,35 +466,23 @@ const Login = () => {
             </div>
             <div className="grid grid-cols-3 gap-3 mb-6">
               {LOGIN_ROLES.map(r => (
-                <button
-                  key={r.value}
-                  onClick={() => setGoogleRoleSelected(r.value)}
+                <button key={r.value} onClick={() => setGoogleRoleSelected(r.value)}
                   className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all
-                    ${googleRoleSelected === r.value
-                      ? 'border-primary bg-primary/15 shadow-md scale-105'
-                      : 'border-primary/20 bg-background/50 hover:border-primary/50'
-                    }`}
-                >
+                    ${googleRoleSelected === r.value ? 'border-primary bg-primary/15 shadow-md scale-105' : 'border-primary/20 bg-background/50 hover:border-primary/50'}`}>
                   <span className="text-2xl">{r.emoji}</span>
                   <span className={`text-xs font-bold ${googleRoleSelected === r.value ? 'text-primary' : 'text-foreground'}`}>{r.label}</span>
                 </button>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground text-center mb-5">
-              {LOGIN_ROLES.find(r => r.value === googleRoleSelected)?.desc}
-            </p>
+            <p className="text-xs text-muted-foreground text-center mb-5">{LOGIN_ROLES.find(r => r.value === googleRoleSelected)?.desc}</p>
             <div className="flex gap-3">
-              <button
-                onClick={() => setShowGoogleRoleModal(false)}
-                className="flex-1 py-2.5 rounded-xl border-2 border-primary/20 text-muted-foreground hover:bg-muted transition text-sm font-medium"
-              >
+              <button onClick={() => setShowGoogleRoleModal(false)}
+                className="flex-1 py-2.5 rounded-xl border-2 border-primary/20 text-muted-foreground hover:bg-muted transition text-sm font-medium">
                 Cancel
               </button>
-              <button
-                onClick={handleGoogleSignIn}
+              <button onClick={handleGoogleSignIn}
                 className="flex-1 py-2.5 rounded-xl font-bold text-foreground transition flex items-center justify-center gap-2 text-sm"
-                style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)))' }}
-              >
+                style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)))' }}>
                 <svg className="w-4 h-4" viewBox="0 0 24 24">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
                   <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
