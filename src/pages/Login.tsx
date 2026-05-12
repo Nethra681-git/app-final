@@ -1,10 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { getAuth, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { getDoc, doc, setDoc } from 'firebase/firestore';
 import { Eye, EyeOff } from 'lucide-react';
-import app, { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
+import {
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+  GoogleAuthProvider,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword
+} from 'firebase/auth';
 import { useStore, type UserRole } from '@/lib/store';
 import { countries, phoneFormats } from '@/lib/countries';
 import logo from '@/assets/logo.webp';
@@ -15,6 +22,9 @@ const LOGIN_ROLES: { value: UserRole; label: string; emoji: string; desc: string
   { value: 'farmer', label: 'Farmer', emoji: '🌾', desc: 'Sell your farm produce' },
   { value: 'admin',  label: 'Admin',  emoji: '🛡️', desc: 'Manage the platform' },
 ];
+
+// ✅ Detect mobile browser
+const isMobile = () => /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
 const Login = () => {
   const { t } = useTranslation();
@@ -37,8 +47,63 @@ const Login = () => {
   const [loginRole, setLoginRole] = useState<UserRole>('buyer');
   const [showRoleSelect, setShowRoleSelect] = useState(false);
 
-  const auth = getAuth(app);
-  const googleProvider = new GoogleAuthProvider();
+  // ✅ Handle redirect result when user comes back from Google on mobile
+  useEffect(() => {
+    const handleRedirectResult = async () => {
+      try {
+        setGoogleLoading(true);
+        const result = await getRedirectResult(auth);
+        if (!result) return; // No redirect in progress
+
+        const googleUser = result.user;
+        const savedRole = (sessionStorage.getItem('googleRoleSelected') as UserRole) || 'buyer';
+        sessionStorage.removeItem('googleRoleSelected');
+
+        const userRef = doc(db, 'users', googleUser.uid);
+        const userSnap = await getDoc(userRef);
+
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          setCurrentUser({
+            id: googleUser.uid,
+            name: userData.name || googleUser.displayName || '',
+            email: userData.email || googleUser.email || '',
+            phone: userData.phone || '',
+            country: userData.country || 'India',
+            role: userData.role || savedRole,
+            status: userData.status || 'pending',
+            userType: userData.userType || 'domestic',
+            verified: true
+          });
+        } else {
+          const newUserData = {
+            id: googleUser.uid,
+            name: googleUser.displayName || '',
+            email: googleUser.email || '',
+            phone: '',
+            country: 'India',
+            role: savedRole,
+            status: 'pending' as const,
+            userType: 'domestic' as const,
+            verified: true,
+            createdAt: new Date().toISOString()
+          };
+          await setDoc(doc(db, 'users', googleUser.uid), newUserData);
+          addUser(newUserData);
+          setCurrentUser(newUserData);
+        }
+        navigate('/dashboard');
+      } catch (error: any) {
+        if (error.code !== 'auth/no-auth-event') {
+          setGoogleError(error.message || 'Google Sign-in failed');
+        }
+      } finally {
+        setGoogleLoading(false);
+      }
+    };
+
+    handleRedirectResult();
+  }, []);
 
   const handleEmailChange = (val: string) => {
     setEmail(val);
@@ -124,7 +189,7 @@ const Login = () => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
-      const userType = country === 'India' ? 'domestic' : 'international';
+      const userType = (country === 'India' ? 'domestic' : 'international') as import('@/lib/store').UserType;
       const newUser = {
         id: firebaseUser.uid, name, email, phone, country, role,
         status: 'pending' as const, userType, verified: false
@@ -152,14 +217,24 @@ const Login = () => {
     setShowGoogleRoleModal(true);
   };
 
-  // ✅ Fixed: signInWithPopup — no redirect, no sessionStorage needed
+  // ✅ Mobile → signInWithRedirect | Desktop → signInWithPopup
   const handleGoogleSignIn = async () => {
     setShowGoogleRoleModal(false);
     try {
       setGoogleLoading(true);
       setGoogleError('');
 
-      const result = await signInWithPopup(auth, googleProvider);
+      const provider = new GoogleAuthProvider();
+
+      if (isMobile()) {
+        // Save role before redirect — page will reload after Google auth!
+        sessionStorage.setItem('googleRoleSelected', googleRoleSelected);
+        await signInWithRedirect(auth, provider);
+        return; // Page redirects, code below won't run
+      }
+
+      // Desktop: popup works fine
+      const result = await signInWithPopup(auth, provider);
       const googleUser = result.user;
 
       const userRef = doc(db, 'users', googleUser.uid);
@@ -178,7 +253,6 @@ const Login = () => {
           userType: userData.userType || 'domestic',
           verified: true
         });
-        navigate('/dashboard');
       } else {
         const newUserData = {
           id: googleUser.uid,
@@ -195,8 +269,8 @@ const Login = () => {
         await setDoc(doc(db, 'users', googleUser.uid), newUserData);
         addUser(newUserData);
         setCurrentUser(newUserData);
-        navigate('/dashboard');
       }
+      navigate('/dashboard');
     } catch (error: any) {
       setGoogleError(error.message || 'Google Sign-in failed');
     } finally {
@@ -229,6 +303,12 @@ const Login = () => {
           <h1 className="text-4xl font-bold text-foreground text-center mb-2">{t('shastika')}</h1>
           <p className="text-center text-sm text-muted-foreground font-medium tracking-wide">{t('globalImpex')}</p>
         </div>
+
+        {googleLoading && (
+          <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 mb-6 text-sm text-center text-muted-foreground animate-pulse">
+            Signing in with Google...
+          </div>
+        )}
 
         {successMsg && (
           <div className="bg-primary/20 border border-primary/30 text-secondary rounded-xl p-4 mb-6 text-sm font-medium shadow-lg text-center">

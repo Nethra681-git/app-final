@@ -20,8 +20,6 @@ import ShastikaChatbot from "./pages/cocobot";
 import Verification from "./pages/Verification";
 import Profile from "./pages/Profile";
 import AdminPanel from "./pages/AdminPanel";
-
-
 import Notifications from "./pages/Notifications";
 import FarmerDashboard from "./pages/FarmerDashboard";
 import PaymentConfirmation from "./pages/PaymentConfirmation";
@@ -37,7 +35,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { currentUser } = useStore();
   const { isLoading, isAccessDenied, denialReason } = useProtectedRoute();
 
-  // Show loading state
   if (isLoading) {
     return (
       <AppLayout>
@@ -48,7 +45,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
-  // Show access denied message for rejected/disabled users
   if (isAccessDenied) {
     return (
       <AppLayout>
@@ -62,7 +58,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
-  // If not authenticated, redirect to login
   if (!currentUser) return <Navigate to="/" replace />;
 
   return <AppLayout>{children}</AppLayout>;
@@ -104,8 +99,6 @@ const App = () => (
           <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
           <Route path="/farmer-dashboard" element={<FarmerRoute><FarmerDashboard /></FarmerRoute>} />
           <Route path="/admin" element={<AdminRoute><AdminPanel /></AdminRoute>} />
-
-
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
@@ -113,4 +106,4 @@ const App = () => (
   </QueryClientProvider>
 );
 
-export default App;
+export default App; 

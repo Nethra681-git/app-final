@@ -230,23 +230,12 @@ const OrderPage = () => {
             <p className="text-xs text-muted-foreground">1. Open any UPI app (Google Pay, PhonePe, Paytm)</p>
             <p className="text-xs text-muted-foreground">2. Scan the QR code above OR enter UPI ID manually</p>
             <p className="text-xs text-muted-foreground">3. Enter amount ₹{total.toLocaleString()} and complete payment</p>
-            <p className="text-xs text-muted-foreground">4. Copy the Transaction ID / UTR number</p>
+
             <p className="text-xs text-muted-foreground">5. Paste it below and click confirm</p>
           </div>
         </div>
 
-        <div className="glass-card rounded-xl p-6 space-y-4">
-          <h3 className="font-semibold text-foreground">Confirm Your Payment</h3>
-          <div>
-            <label className="text-sm font-medium text-foreground">Transaction ID / UTR Number *</label>
-            <input className="w-full mt-1 px-3 py-2 border border-input rounded-lg bg-background text-foreground outline-none focus:ring-2 focus:ring-primary/30"
-              placeholder="Enter your UPI transaction reference" value={txnId} onChange={e => setTxnId(e.target.value)} />
-          </div>
-          <button onClick={handlePaymentDone} disabled={!txnId.trim()}
-            className={`w-full py-3 rounded-lg font-medium transition ${txnId.trim() ? 'gradient-primary text-primary-foreground hover:opacity-90' : 'bg-muted text-muted-foreground cursor-not-allowed'}`}>
-            ✅ I Have Paid — Confirm Order
-          </button>
-        </div>
+        {/* Confirm Your Payment and I Have Paid — Confirm Order button removed as requested */}
 
         <div className="text-center text-sm text-muted-foreground py-2">OR</div>
 
