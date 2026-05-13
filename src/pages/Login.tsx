@@ -6,8 +6,6 @@ import { Eye, EyeOff } from 'lucide-react';
 import { db, auth } from '@/lib/firebase';
 import {
   signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult,
   GoogleAuthProvider,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword
@@ -23,12 +21,8 @@ const LOGIN_ROLES: { value: UserRole; label: string; emoji: string; desc: string
   { value: 'admin',  label: 'Admin',  emoji: '🛡️', desc: 'Manage the platform' },
 ];
 
-// ✅ Detect mobile browser (but NOT Capacitor APK)
-const isMobile = () => {
-  const isCapacitor = !!(window as any).Capacitor;
-  if (isCapacitor) return false; // APK-ல் எப்பவும் popup use பண்ணு
-  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-};
+// ✅ எப்பவும் popup use பண்ணு — redirect வேண்டாம்
+const isMobile = () => false;
 
 const Login = () => {
   const { t } = useTranslation();
@@ -50,64 +44,6 @@ const Login = () => {
   const [googleRoleSelected, setGoogleRoleSelected] = useState<UserRole>('buyer');
   const [loginRole, setLoginRole] = useState<UserRole>('buyer');
   const [showRoleSelect, setShowRoleSelect] = useState(false);
-
-  // ✅ Handle redirect result when user comes back from Google on mobile
-  useEffect(() => {
-    const handleRedirectResult = async () => {
-      try {
-        setGoogleLoading(true);
-        const result = await getRedirectResult(auth);
-        if (!result) return;
-
-        const googleUser = result.user;
-        const savedRole = (sessionStorage.getItem('googleRoleSelected') as UserRole) || 'buyer';
-        sessionStorage.removeItem('googleRoleSelected');
-
-        const userRef = doc(db, 'users', googleUser.uid);
-        const userSnap = await getDoc(userRef);
-
-        if (userSnap.exists()) {
-          const userData = userSnap.data();
-          setCurrentUser({
-            id: googleUser.uid,
-            name: userData.name || googleUser.displayName || '',
-            email: userData.email || googleUser.email || '',
-            phone: userData.phone || '',
-            country: userData.country || 'India',
-            role: userData.role || savedRole,
-            status: userData.status || 'pending',
-            userType: userData.userType || 'domestic',
-            verified: true
-          });
-        } else {
-          const newUserData = {
-            id: googleUser.uid,
-            name: googleUser.displayName || '',
-            email: googleUser.email || '',
-            phone: '',
-            country: 'India',
-            role: savedRole,
-            status: 'pending' as const,
-            userType: 'domestic' as const,
-            verified: true,
-            createdAt: new Date().toISOString()
-          };
-          await setDoc(doc(db, 'users', googleUser.uid), newUserData);
-          addUser(newUserData);
-          setCurrentUser(newUserData);
-        }
-        navigate('/dashboard');
-      } catch (error: any) {
-        if (error.code !== 'auth/no-auth-event') {
-          setGoogleError(error.message || 'Google Sign-in failed');
-        }
-      } finally {
-        setGoogleLoading(false);
-      }
-    };
-
-    handleRedirectResult();
-  }, []);
 
   const handleEmailChange = (val: string) => {
     setEmail(val);
@@ -221,7 +157,7 @@ const Login = () => {
     setShowGoogleRoleModal(true);
   };
 
-  // ✅ APK-ல் எப்பவும் popup | Mobile browser-ல் redirect
+  // ✅ எப்பவும் popup — redirect இல்லை
   const handleGoogleSignIn = async () => {
     setShowGoogleRoleModal(false);
     try {
@@ -229,14 +165,6 @@ const Login = () => {
       setGoogleError('');
 
       const provider = new GoogleAuthProvider();
-
-      if (isMobile()) {
-        sessionStorage.setItem('googleRoleSelected', googleRoleSelected);
-        await signInWithRedirect(auth, provider);
-        return;
-      }
-
-      // Desktop + APK: popup
       const result = await signInWithPopup(auth, provider);
       const googleUser = result.user;
 
