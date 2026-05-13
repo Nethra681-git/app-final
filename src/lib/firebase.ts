@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
+import { getAuth, browserLocalPersistence, setPersistence } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: "AIzaSyAcYOu2XqBJMhhw8JJ08jJv6-V1SoUTX4o",
@@ -17,5 +17,8 @@ const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 
 export const auth = getAuth(app);
+
+// ✅ Chrome mobile fix
+setPersistence(auth, browserLocalPersistence).catch(console.error);
 
 export default app;
