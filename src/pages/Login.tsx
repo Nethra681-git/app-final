@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { getDoc, doc, setDoc } from 'firebase/firestore';
@@ -20,9 +20,6 @@ const LOGIN_ROLES: { value: UserRole; label: string; emoji: string; desc: string
   { value: 'farmer', label: 'Farmer', emoji: '🌾', desc: 'Sell your farm produce' },
   { value: 'admin',  label: 'Admin',  emoji: '🛡️', desc: 'Manage the platform' },
 ];
-
-// ✅ எப்பவும் popup use பண்ணு — redirect வேண்டாம்
-const isMobile = () => false;
 
 const Login = () => {
   const { t } = useTranslation();
@@ -157,7 +154,7 @@ const Login = () => {
     setShowGoogleRoleModal(true);
   };
 
-  // ✅ எப்பவும் popup — redirect இல்லை
+  // ✅ Popup with select_account — Chrome mobile fix
   const handleGoogleSignIn = async () => {
     setShowGoogleRoleModal(false);
     try {
@@ -165,6 +162,7 @@ const Login = () => {
       setGoogleError('');
 
       const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' }); // ✅ Fix
       const result = await signInWithPopup(auth, provider);
       const googleUser = result.user;
 
