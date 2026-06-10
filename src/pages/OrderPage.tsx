@@ -230,7 +230,8 @@ const OrderPage = () => {
             <label className="text-sm font-medium text-foreground">Quantity ({product.unit})</label>
             <input type="number" min={1}
               className="w-full mt-1 px-3 py-2 border border-input rounded-lg bg-background text-foreground outline-none focus:ring-2 focus:ring-primary/30"
-              value={quantity} onChange={e => setQuantity(Math.max(1, +e.target.value))} />
+              value={quantity} onChange={e => setQuantity(Math.max(1, +e.target.value))}
+              onFocus={e => e.target.select()} />
           </div>
           <div>
             <label className="text-sm font-medium text-foreground">Market Type</label>
