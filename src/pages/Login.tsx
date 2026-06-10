@@ -38,8 +38,8 @@ const Login = () => {
   const [successMsg, setSuccessMsg] = useState('');
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleError, setGoogleError] = useState('');
-  const [showGoogleRoleModal, setShowGoogleRoleModal] = useState(false);
-  const [googleRoleSelected, setGoogleRoleSelected] = useState<UserRole>('buyer');
+  const [showGoogleCompleteForm, setShowGoogleCompleteForm] = useState(false);
+  const [googleFirebaseUser, setGoogleFirebaseUser] = useState<any>(null);
   const [loginRole, setLoginRole] = useState<UserRole>('buyer');
   const [showRoleSelect, setShowRoleSelect] = useState(false);
 
@@ -153,11 +153,13 @@ const Login = () => {
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') { isSignup ? handleSignup() : handleLogin(); }
+    if (e.key === 'Enter') { 
+      if (showGoogleCompleteForm) handleGoogleCompleteSignup();
+      else isSignup ? handleSignup() : handleLogin(); 
+    }
   };
 
   const handleGoogleSignIn = async () => {
-    setShowGoogleRoleModal(false);
     try {
       setGoogleLoading(true);
       setGoogleError('');
@@ -175,31 +177,60 @@ const Login = () => {
           email: userData.email || googleUser.email || '',
           phone: userData.phone || '',
           country: userData.country || 'India',
-          role: userData.role || googleRoleSelected,
+          role: userData.role || 'buyer',
           status: userData.status || 'pending',
           userType: userData.userType || 'domestic',
           verified: true
         });
+        navigate('/dashboard');
       } else {
-        const newUserData = {
-          id: googleUser.uid,
-          name: googleUser.displayName || '',
-          email: googleUser.email || '',
-          phone: '',
-          country: 'India',
-          role: googleRoleSelected,
-          status: 'pending' as const,
-          userType: 'domestic' as const,
-          verified: true,
-          createdAt: new Date().toISOString()
-        };
-        await setDoc(doc(db, 'users', googleUser.uid), newUserData);
-        addUser(newUserData);
-        setCurrentUser(newUserData);
+        setGoogleFirebaseUser(googleUser);
+        setName(googleUser.displayName || '');
+        setEmail(googleUser.email || '');
+        setPhone('');
+        setCountry('India');
+        setRole('buyer');
+        setShowGoogleCompleteForm(true);
       }
-      navigate('/dashboard');
     } catch (error: any) {
       setGoogleError(error.message || 'Google Sign-in failed');
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleGoogleCompleteSignup = async () => {
+    if (!name.trim()) { setErrors({ name: t('nameRequired') }); return; }
+    if (!phone) { setErrors({ phone: t('phoneRequired') }); return; }
+    else if (!/^\d+$/.test(phone)) { setErrors({ phone: t('phoneMustBeNumeric') }); return; }
+    else {
+      const fmt = phoneFormats[country];
+      if (fmt && phone.length !== fmt.digits) { setErrors({ phone: `Must be ${fmt.digits} digits for ${country}` }); return; }
+    }
+    if (!country) { setErrors({ country: t('countryRequired') }); return; }
+
+    try {
+      setGoogleLoading(true);
+      const userType = (country === 'India' ? 'domestic' : 'international') as import('@/lib/store').UserType;
+      const newUserData = {
+        id: googleFirebaseUser.uid,
+        name,
+        email: googleFirebaseUser.email || email,
+        phone,
+        country,
+        role,
+        status: 'pending' as const,
+        userType,
+        verified: true,
+        createdAt: new Date().toISOString()
+      };
+      await setDoc(doc(db, 'users', googleFirebaseUser.uid), newUserData);
+      addUser(newUserData);
+      setCurrentUser(newUserData);
+      setSuccessMsg(t('login_account_created'));
+      setTimeout(() => navigate('/dashboard'), 1000);
+    } catch (error: any) {
+      setErrors({ form: error.message || 'Complete signup failed' });
     } finally {
       setGoogleLoading(false);
     }
@@ -236,7 +267,54 @@ const Login = () => {
           </div>
         )}
 
-        {isSignup ? (
+        {showGoogleCompleteForm ? (
+          <div className="space-y-4 animate-fade-in">
+            <div className="text-center mb-6">
+              <h2 className="text-xl font-bold text-foreground">Complete Your Profile</h2>
+              <p className="text-sm text-muted-foreground mt-1">Almost there! Just a few more details.</p>
+            </div>
+            
+            <div>
+              <label className="text-sm font-semibold text-foreground mb-2 block">{t('fullName')} *</label>
+              <input className={inputClass} style={inputStyle} value={name} onChange={e => setName(e.target.value)} placeholder={t('fullName')}
+                onFocus={e => e.currentTarget.style.boxShadow = focusStyle} onBlur={e => e.currentTarget.style.boxShadow = inputStyle.boxShadow} />
+              {errors.name && <p className="text-destructive text-xs mt-1.5 font-medium">{errors.name}</p>}
+            </div>
+            <div>
+              <label className="text-sm font-semibold text-foreground mb-2 block">{t('country')} *</label>
+              <select className={inputClass} style={inputStyle} value={country} onChange={e => setCountry(e.target.value)}
+                onFocus={e => e.currentTarget.style.boxShadow = focusStyle} onBlur={e => e.currentTarget.style.boxShadow = inputStyle.boxShadow}>
+                <option value="" className="bg-background">{t('selectYourCountry')}</option>
+                {countries.map(c => <option key={c} value={c} className="bg-background">{c}</option>)}
+              </select>
+              {errors.country && <p className="text-destructive text-xs mt-1.5 font-medium">{errors.country}</p>}
+            </div>
+            <div>
+              <label className="text-sm font-semibold text-foreground mb-2 block">{t('phoneNumber')} *</label>
+              <input className={inputClass} style={inputStyle} value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, ''))}
+                placeholder={phoneFormats[country] ? `${phoneFormats[country].digits} digits` : t('phoneNumber')}
+                onFocus={e => e.currentTarget.style.boxShadow = focusStyle} onBlur={e => e.currentTarget.style.boxShadow = inputStyle.boxShadow} />
+              {errors.phone && <p className="text-destructive text-xs mt-1.5 font-medium">{errors.phone}</p>}
+            </div>
+            <div>
+              <label className="text-sm font-semibold text-foreground mb-2 block">{t('role')} *</label>
+              <select className={inputClass} style={inputStyle} value={role} onChange={e => setRole(e.target.value as UserRole)}
+                onFocus={e => e.currentTarget.style.boxShadow = focusStyle} onBlur={e => e.currentTarget.style.boxShadow = inputStyle.boxShadow}>
+                <option value="farmer" className="bg-background">{t('farmer')}</option>
+                <option value="buyer" className="bg-background">{t('buyer')}</option>
+              </select>
+            </div>
+            {errors.form && <p className="text-destructive text-sm mt-1.5 font-medium">{errors.form}</p>}
+            
+            <button onClick={handleGoogleCompleteSignup} disabled={googleLoading} className="w-full py-3 rounded-xl font-bold mt-6 text-foreground transition transform hover:scale-105"
+              style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)))', boxShadow: '0 0 30px rgba(34, 197, 94, 0.3)', textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
+              {googleLoading ? 'Saving...' : 'Complete Signup'}
+            </button>
+            <p className="text-center text-sm text-muted-foreground mt-4">
+              <button onClick={() => { setShowGoogleCompleteForm(false); auth.signOut(); }} className="text-primary font-semibold hover:text-secondary transition underline">Cancel</button>
+            </p>
+          </div>
+        ) : isSignup ? (
           <div className="space-y-4">
             <div>
               <label className="text-sm font-semibold text-foreground mb-2 block">{t('fullName')} *</label>
@@ -298,7 +376,7 @@ const Login = () => {
           </div>
         ) : (
           <div className="space-y-5">
-            <button onClick={() => setShowGoogleRoleModal(true)} disabled={googleLoading}
+            <button onClick={handleGoogleSignIn} disabled={googleLoading}
               className="w-full border-2 border-primary/30 py-3 rounded-xl font-semibold text-foreground hover:border-primary/60 hover:bg-primary/5 transition flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed">
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
@@ -373,40 +451,6 @@ const Login = () => {
           </div>
         )}
       </div>
-
-      {showGoogleRoleModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}>
-          <div className="w-full max-w-sm rounded-2xl p-6 border border-primary/30 shadow-2xl animate-fade-in" style={{ backgroundColor: 'hsl(var(--card))' }}>
-            <div className="text-center mb-5">
-              <div className="text-4xl mb-2">🔐</div>
-              <h2 className="text-xl font-bold text-foreground">Sign in as...</h2>
-              <p className="text-sm text-muted-foreground mt-1">Choose your role before continuing with Google</p>
-            </div>
-            <div className="grid grid-cols-2 gap-3 mb-6">
-              {LOGIN_ROLES.map(r => (
-                <button key={r.value} onClick={() => setGoogleRoleSelected(r.value)}
-                  className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all
-                    ${googleRoleSelected === r.value ? 'border-primary bg-primary/15 shadow-md scale-105' : 'border-primary/20 bg-background/50 hover:border-primary/50'}`}>
-                  <span className="text-2xl">{r.emoji}</span>
-                  <span className={`text-xs font-bold ${googleRoleSelected === r.value ? 'text-primary' : 'text-foreground'}`}>{r.label}</span>
-                </button>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground text-center mb-5">{LOGIN_ROLES.find(r => r.value === googleRoleSelected)?.desc}</p>
-            <div className="flex gap-3">
-              <button onClick={() => setShowGoogleRoleModal(false)}
-                className="flex-1 py-2.5 rounded-xl border-2 border-primary/20 text-muted-foreground hover:bg-muted transition text-sm font-medium">
-                Cancel
-              </button>
-              <button onClick={handleGoogleSignIn}
-                className="flex-1 py-2.5 rounded-xl font-bold text-foreground transition flex items-center justify-center gap-2 text-sm"
-                style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)))' }}>
-                Continue as {LOGIN_ROLES.find(r => r.value === googleRoleSelected)?.label}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
