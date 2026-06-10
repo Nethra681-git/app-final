@@ -1,13 +1,16 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useStore } from '@/lib/store';
-import { auth } from '@/lib/firebase'; // ✅ auth import
+import { auth } from '@/lib/firebase';
 import { generateInvoice } from '@/lib/invoice';
 import { ChevronLeft, Download, Truck, QrCode, CheckCircle2 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
 const UPI_ID = '9789090920@okbizaxis';
 const COMPANY_NAME = 'Shastika Global Impex Pvt Ltd';
+
+// ✅ FIX: localhost:3001 பதிலா Render URL use பண்றோம்
+const API_BASE_URL = import.meta.env.VITE_PAYMENT_API_URL || "https://app-finals.onrender.com";
 
 const OrderPage = () => {
   const { id } = useParams();
@@ -19,22 +22,15 @@ const OrderPage = () => {
   const [shippingMethod, setShippingMethod] = useState<'sea' | 'air'>('sea');
   const [step, setStep] = useState<'details' | 'payment' | 'confirmed'>('details');
   const [orderId, setOrderId] = useState('');
-  const [txnId, setTxnId] = useState('');
 
   if (!product || !currentUser) return <div className="text-center py-20 text-muted-foreground">Not available</div>;
 
   const price = marketType === 'domestic' ? product.domesticPrice : product.exportPrice;
-  // ✅ FIX: Calculate total in paise to avoid floating point precision errors
-  const totalInRupees = price * quantity;
-  const totalInPaise = Math.round(totalInRupees * 100);
-  const total = totalInRupees; // Keep for display purposes
+  const total = price * quantity;
   const upiLink = `upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(COMPANY_NAME)}&am=${total}&cu=INR&tn=${encodeURIComponent(`Order ${orderId}`)}`;
 
   const handleProceedToPayment = () => {
-    // ✅ FIX: Generate unique order ID to prevent collisions
-    const oid = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-    // ✅ KEY FIX: Firebase Auth UID use பண்றோம் — Firestore-ல் store ஆன buyerId-உடன் match ஆகும்
+    const oid = `ORD-${Date.now()}`;
     const firebaseUid = auth.currentUser?.uid || currentUser.id;
 
     const order = {
@@ -43,9 +39,8 @@ const OrderPage = () => {
       productName: product.name,
       quantity,
       price,
-      total: totalInRupees, // Store rupees for display
-      totalInPaise, // Store paise for payment processing
-      buyerId: firebaseUid, // ✅ Firebase Auth UID
+      total,
+      buyerId: firebaseUid,
       buyerName: currentUser.name,
       buyerEmail: currentUser.email,
       buyerPhone: currentUser.phone,
@@ -63,7 +58,6 @@ const OrderPage = () => {
     addOrder(order);
     setOrderId(oid);
 
-    // Notify farmer
     addNotification({
       id: `n${Date.now()}`,
       title: 'புதிய ஆர்டர் வந்தது! 🛒',
@@ -73,52 +67,16 @@ const OrderPage = () => {
       targetRoles: ['farmer'],
     });
 
-    // Notify admin
     addNotification({
       id: `n${Date.now() + 1}`,
       title: 'New Order Placed',
-      message: `${currentUser.name} placed order for ${product.name} (${quantity} ${product.unit}) — ₹${totalInRupees.toLocaleString()}`,
+      message: `${currentUser.name} placed order for ${product.name} (${quantity} ${product.unit}) — ₹${total.toLocaleString()}`,
       timestamp: new Date().toLocaleString(),
       read: false,
       targetRoles: ['admin'],
     });
 
     setStep('payment');
-  };
-
-  const handlePaymentDone = () => {
-    if (!txnId.trim()) return;
-
-    const firebaseUid = auth.currentUser?.uid || currentUser.id; // ✅
-
-    markOrderPaymentComplete(orderId);
-    addPayment({
-      id: `PAY-${Date.now()}`,
-      orderId,
-      buyerId: firebaseUid, // ✅ Firebase Auth UID
-      buyerName: currentUser.name,
-      buyerEmail: currentUser.email,
-      buyerPhone: currentUser.phone,
-      amount: totalInRupees, // Use rupees for display/storage
-      method: 'upi',
-      transactionId: txnId.trim(),
-      utrNumber: txnId.trim(),
-      bankName: 'UPI',
-      status: 'pending',
-      timestamp: new Date().toLocaleString(),
-      adminNote: '',
-    });
-
-    addNotification({
-      id: `n${Date.now() + 2}`,
-      title: 'Payment Received',
-      message: `${currentUser.name} paid ₹${totalInRupees.toLocaleString()} via UPI for order ${orderId}. UTR: ${txnId.trim()}`,
-      timestamp: new Date().toLocaleString(),
-      read: false,
-      targetRoles: ['admin'],
-    });
-
-    setStep('confirmed');
   };
 
   const handleRazorpay = async () => {
@@ -131,22 +89,21 @@ const OrderPage = () => {
         s.onerror = () => resolve(false);
         document.body.appendChild(s);
       });
+
       const loaded = await loadScript();
       if (!loaded) { alert('Failed to load payment gateway'); return; }
 
-      const res = await fetch("http://localhost:3001/api/razorpay/create-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: totalInPaise })
+      const apiUrl = import.meta.env.VITE_PAYMENT_API_URL || 'https://app-finals.onrender.com';
+      const res = await fetch(`${apiUrl}/api/razorpay/create-order`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: total, currency: 'INR', receipt: `receipt_${Date.now()}` })
       });
-
-      // ✅ FIX: Add console.log before sending to backend
-      console.log('Amount being sent:', totalInPaise, 'paise =', totalInPaise/100, 'rupees');
 
       const data = await res.json();
       if (!data.success) { alert("Error creating order"); return; }
 
-      const firebaseUid = auth.currentUser?.uid || currentUser.id; // ✅
+      const firebaseUid = auth.currentUser?.uid || currentUser.id;
 
       const options = {
         key: import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_live_SlwOcx9B6AaXXp",
@@ -158,11 +115,11 @@ const OrderPage = () => {
           addPayment({
             id: `PAY-${Date.now()}`,
             orderId,
-            buyerId: firebaseUid, // ✅
+            buyerId: firebaseUid,
             buyerName: currentUser.name,
             buyerEmail: currentUser.email,
             buyerPhone: currentUser.phone,
-            amount: totalInRupees, // Use rupees for display/storage
+            amount: total,
             method: 'razorpay',
             transactionId: response.razorpay_payment_id,
             utrNumber: response.razorpay_payment_id,
@@ -208,7 +165,7 @@ const OrderPage = () => {
     );
   }
 
-  // Step 2: UPI Payment
+  // Step 2: Payment
   if (step === 'payment') {
     return (
       <div className="w-full max-w-2xl mx-auto space-y-6 animate-fade-in mb-20">
@@ -238,25 +195,8 @@ const OrderPage = () => {
             <p className="text-xs text-muted-foreground">1. Open any UPI app (Google Pay, PhonePe, Paytm)</p>
             <p className="text-xs text-muted-foreground">2. Scan the QR code above OR enter UPI ID manually</p>
             <p className="text-xs text-muted-foreground">3. Enter amount ₹{total.toLocaleString()} and complete payment</p>
-            <p className="text-xs text-muted-foreground">4. Copy the Transaction ID / UTR number</p>
-            <p className="text-xs text-muted-foreground">5. Paste it below and click confirm</p>
           </div>
         </div>
-
-        <div className="glass-card rounded-xl p-6 space-y-4">
-          <h3 className="font-semibold text-foreground">Confirm Your Payment</h3>
-          <div>
-            <label className="text-sm font-medium text-foreground">Transaction ID / UTR Number *</label>
-            <input className="w-full mt-1 px-3 py-2 border border-input rounded-lg bg-background text-foreground outline-none focus:ring-2 focus:ring-primary/30"
-              placeholder="Enter your UPI transaction reference" value={txnId} onChange={e => setTxnId(e.target.value)} />
-          </div>
-          <button onClick={handlePaymentDone} disabled={!txnId.trim()}
-            className={`w-full py-3 rounded-lg font-medium transition ${txnId.trim() ? 'gradient-primary text-primary-foreground hover:opacity-90' : 'bg-muted text-muted-foreground cursor-not-allowed'}`}>
-            ✅ I Have Paid — Confirm Order
-          </button>
-        </div>
-
-        <div className="text-center text-sm text-muted-foreground py-2">OR</div>
 
         <div className="glass-card rounded-xl p-6">
           <button onClick={handleRazorpay}
@@ -315,8 +255,8 @@ const OrderPage = () => {
         </div>
 
         <div className="bg-accent/10 border border-accent/30 rounded-lg p-3">
-          <p className="text-sm font-medium text-accent-foreground">📱 Payment Method: <span className="font-bold">UPI Only</span></p>
-          <p className="text-xs text-muted-foreground mt-1">After placing the order, you'll scan a QR code or use UPI ID to complete payment.</p>
+          <p className="text-sm font-medium text-accent-foreground">📱 Payment Method: <span className="font-bold">UPI + Razorpay</span></p>
+          <p className="text-xs text-muted-foreground mt-1">After placing the order, you can pay via UPI QR code or Razorpay.</p>
         </div>
 
         <div className="bg-muted rounded-lg p-4 flex items-center justify-between">

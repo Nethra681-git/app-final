@@ -1,7 +1,7 @@
 import io, { Socket } from 'socket.io-client';
 
 let socket: Socket | null = null;
-const SOCKET_SERVER_URL = import.meta.env.VITE_PAYMENT_API_URL || 'http://localhost:3001';
+const SOCKET_SERVER_URL = import.meta.env.VITE_API_URL || 'https://app-finals.onrender.com';
 
 console.log('🔧 Socket Service initialized with URL:', SOCKET_SERVER_URL);
 

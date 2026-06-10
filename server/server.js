@@ -37,20 +37,11 @@ const PORT = process.env.PORT || 3001;
 
 // Create HTTP server with Socket.io
 const httpServer = createServer(app);
-const allowedOrigins = [
-  process.env.FRONTEND_URL,
-  'https://app-final-e6hl5l67b-nethra681-gits-projects.vercel.app'
-];
-
 const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin or from allowed production/localhost domains
-    if (!origin || allowedOrigins.includes(origin) || (origin && origin.startsWith('http://localhost:'))) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: [
+    'https://app-final-eta.vercel.app',
+    'http://localhost:5173'
+  ],
   methods: ['GET', 'POST'],
   credentials: true,
 };
@@ -255,20 +246,17 @@ app.post('/api/razorpay/create-order', async (req, res) => {
     
     const { amount, currency = 'INR', receipt, notes = {} } = req.body;
 
-    // ✅ FIX: Add console.log of received amount
-    console.log('Received amount:', amount, 'paise =', amount/100, 'rupees');
-
-    // ✅ FIX: Enhanced amount validation (amount comes in paise from frontend)
-    if (!amount || amount < 100 || amount > 1000000000) { // 1-10,000,000 INR range
+    // Validate amount (in smallest unit - paise for INR)
+    if (!amount || amount < 1) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid amount. Must be between ₹1 and ₹10,000,000',
+        message: 'Invalid amount',
       });
     }
 
-    // ✅ FIX: Amount already in paise from frontend, no need to multiply by 100
+    // Create order with Razorpay
     const orderOptions = {
-      amount: Math.round(amount), // Already in paise, just ensure it's an integer
+      amount: Math.round(amount * 100), // Convert to paise
       currency,
       receipt: receipt || `receipt_${Date.now()}`,
       notes: {

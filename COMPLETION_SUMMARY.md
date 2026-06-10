@@ -55,7 +55,7 @@
 **Impact**: Users see role-specific dashboard in their preferred language
 
 ### 4. Login Page - ALREADY TRANSLATED ✅
-**File**: `src/pages/Login.tsx` (from previous phase)
+**File**: `src/pages/` (from previous phase)
 
 All login page text including:
 - Form labels: `emailAddress`, `password`, `fullName`, `phoneNumber`, `country`, `role`

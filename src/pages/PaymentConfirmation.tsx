@@ -183,7 +183,7 @@ const PaymentConfirmation: React.FC<PaymentConfirmationProps> = ({
         {/* Transaction ID Input */}
         <div className="space-y-2">
           <label htmlFor="txnId" className="text-sm font-medium text-foreground">
-            Transaction ID / UTR Number <span className="text-destructive">*</span>
+
           </label>
           <Input
             id="txnId"

@@ -1,10 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { getDoc, doc, setDoc } from 'firebase/firestore';
 import { Eye, EyeOff } from 'lucide-react';
-import app, { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
+import {
+  signInWithPopup,
+  GoogleAuthProvider,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword
+} from 'firebase/auth';
 import { useStore, type UserRole } from '@/lib/store';
 import { countries, phoneFormats } from '@/lib/countries';
 import logo from '@/assets/logo.webp';
@@ -15,6 +20,8 @@ const LOGIN_ROLES: { value: UserRole; label: string; emoji: string; desc: string
   { value: 'farmer', label: 'Farmer', emoji: '🌾', desc: 'Sell your farm produce' },
   { value: 'admin',  label: 'Admin',  emoji: '🛡️', desc: 'Manage the platform' },
 ];
+
+const isAndroid = /android/i.test(navigator.userAgent); // ✅ Android check
 
 const Login = () => {
   const { t } = useTranslation();
@@ -36,65 +43,6 @@ const Login = () => {
   const [googleRoleSelected, setGoogleRoleSelected] = useState<UserRole>('buyer');
   const [loginRole, setLoginRole] = useState<UserRole>('buyer');
   const [showRoleSelect, setShowRoleSelect] = useState(false);
-
-  const auth = getAuth(app);
-  const googleProvider = new GoogleAuthProvider();
-
-  useEffect(() => {
-    const handleRedirectResult = async () => {
-      try {
-        setGoogleLoading(true);
-        const result = await getRedirectResult(auth);
-        if (result) {
-          const googleUser = result.user;
-          const userRef = doc(db, 'users', googleUser.uid);
-          const userSnap = await getDoc(userRef);
-          
-          const savedRole = (localStorage.getItem('googleRoleSelected') as UserRole) || 'buyer';
-
-          if (userSnap.exists()) {
-            const userData = userSnap.data();
-            setCurrentUser({
-              id: googleUser.uid,
-              name: userData.name || googleUser.displayName || '',
-              email: userData.email || googleUser.email || '',
-              phone: userData.phone || '',
-              country: userData.country || 'India',
-              role: userData.role || savedRole,
-              status: userData.status || 'pending',
-              userType: userData.userType || 'domestic',
-              verified: true
-            });
-            navigate('/dashboard');
-          } else {
-            const newUserData = {
-              id: googleUser.uid,
-              name: googleUser.displayName || '',
-              email: googleUser.email || '',
-              phone: '',
-              country: 'India',
-              role: savedRole,
-              status: 'pending' as const,
-              userType: 'domestic' as const,
-              verified: true,
-              createdAt: new Date().toISOString()
-            };
-            await setDoc(doc(db, 'users', googleUser.uid), newUserData);
-            addUser(newUserData);
-            setCurrentUser(newUserData);
-            navigate('/dashboard');
-          }
-          localStorage.removeItem('googleRoleSelected');
-        }
-      } catch (error: any) {
-        setGoogleError(error.message || 'Google Sign-in failed');
-      } finally {
-        setGoogleLoading(false);
-      }
-    };
-
-    handleRedirectResult();
-  }, [auth, setCurrentUser, navigate, addUser]);
 
   const handleEmailChange = (val: string) => {
     setEmail(val);
@@ -180,7 +128,7 @@ const Login = () => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
-      const userType = country === 'India' ? 'domestic' : 'international';
+      const userType = (country === 'India' ? 'domestic' : 'international') as import('@/lib/store').UserType;
       const newUser = {
         id: firebaseUser.uid, name, email, phone, country, role,
         status: 'pending' as const, userType, verified: false
@@ -204,19 +152,51 @@ const Login = () => {
     if (e.key === 'Enter') { isSignup ? handleSignup() : handleLogin(); }
   };
 
-  const handleGoogleButtonClick = () => {
-    setShowGoogleRoleModal(true);
-  };
-
   const handleGoogleSignIn = async () => {
     setShowGoogleRoleModal(false);
-    localStorage.setItem('googleRoleSelected', googleRoleSelected);
     try {
       setGoogleLoading(true);
       setGoogleError('');
-      await signInWithRedirect(auth, googleProvider);
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      const result = await signInWithPopup(auth, provider);
+      const googleUser = result.user;
+      const userRef = doc(db, 'users', googleUser.uid);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        const userData = userSnap.data();
+        setCurrentUser({
+          id: googleUser.uid,
+          name: userData.name || googleUser.displayName || '',
+          email: userData.email || googleUser.email || '',
+          phone: userData.phone || '',
+          country: userData.country || 'India',
+          role: userData.role || googleRoleSelected,
+          status: userData.status || 'pending',
+          userType: userData.userType || 'domestic',
+          verified: true
+        });
+      } else {
+        const newUserData = {
+          id: googleUser.uid,
+          name: googleUser.displayName || '',
+          email: googleUser.email || '',
+          phone: '',
+          country: 'India',
+          role: googleRoleSelected,
+          status: 'pending' as const,
+          userType: 'domestic' as const,
+          verified: true,
+          createdAt: new Date().toISOString()
+        };
+        await setDoc(doc(db, 'users', googleUser.uid), newUserData);
+        addUser(newUserData);
+        setCurrentUser(newUserData);
+      }
+      navigate('/dashboard');
     } catch (error: any) {
       setGoogleError(error.message || 'Google Sign-in failed');
+    } finally {
       setGoogleLoading(false);
     }
   };
@@ -228,16 +208,10 @@ const Login = () => {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
       <LanguageSwitcher />
-
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/10 rounded-full -translate-x-1/2 -translate-y-1/2 blur-3xl opacity-30"></div>
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-primary/5 rounded-full translate-x-1/2 translate-y-1/2 blur-3xl opacity-20"></div>
-
-      <div
-        className="w-full max-w-md rounded-2xl p-8 animate-fade-in shadow-2xl border border-primary/20 relative z-10"
-        style={{ backgroundColor: 'hsl(var(--card))' }}
-        onKeyDown={onKeyDown}
-      >
-        {/* Logo */}
+      <div className="w-full max-w-md rounded-2xl p-8 animate-fade-in shadow-2xl border border-primary/20 relative z-10"
+        style={{ backgroundColor: 'hsl(var(--card))' }} onKeyDown={onKeyDown}>
         <div className="flex flex-col items-center mb-8">
           <div className="w-20 h-20 rounded-2xl flex items-center justify-center mb-5 shadow-2xl"
             style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)))', boxShadow: '0 0 30px hsla(var(--primary), 0.4)' }}>
@@ -247,13 +221,17 @@ const Login = () => {
           <p className="text-center text-sm text-muted-foreground font-medium tracking-wide">{t('globalImpex')}</p>
         </div>
 
+        {googleLoading && (
+          <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 mb-6 text-sm text-center text-muted-foreground animate-pulse">
+            Signing in with Google...
+          </div>
+        )}
         {successMsg && (
           <div className="bg-primary/20 border border-primary/30 text-secondary rounded-xl p-4 mb-6 text-sm font-medium shadow-lg text-center">
             {successMsg}
           </div>
         )}
 
-        {/* ─── SIGNUP FORM ─── */}
         {isSignup ? (
           <div className="space-y-4">
             <div>
@@ -314,94 +292,39 @@ const Login = () => {
               <button onClick={() => setIsSignup(false)} className="text-primary font-semibold hover:text-secondary transition">{t('signIn')}</button>
             </p>
           </div>
-
         ) : (
-          /* ─── LOGIN FORM ─── */
           <div className="space-y-5">
-            <button onClick={handleGoogleButtonClick} disabled={googleLoading}
-              className="w-full border-2 border-primary/30 py-3 rounded-xl font-semibold text-foreground hover:border-primary/60 hover:bg-primary/5 transition flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed">
-              <svg className="w-5 h-5" viewBox="0 0 24 24">
-                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
-                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-              </svg>
-              {googleLoading ? 'Signing in...' : t('continueWithGoogle')}
-            </button>
-
-            {googleError && (
-              <div className="bg-destructive/20 border border-destructive/40 text-secondary rounded-xl p-4 text-sm font-medium text-center">
-                {googleError}
-              </div>
-            )}
-
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border/40"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-3 text-muted-foreground font-medium" style={{ backgroundColor: 'hsl(var(--card))' }}>{t('orContinueWith')} Email</span>
-              </div>
-            </div>
-
             <div>
               <label className="text-sm font-semibold text-foreground mb-2 block">{t('emailAddress')}</label>
-              <input
-                type="email"
-                className={inputClass}
-                style={inputStyle}
-                value={email}
-                onChange={e => handleEmailChange(e.target.value)}
-                placeholder="you@example.com"
-                onFocus={e => e.currentTarget.style.boxShadow = focusStyle}
-                onBlur={e => e.currentTarget.style.boxShadow = inputStyle.boxShadow}
-              />
+              <input type="email" className={inputClass} style={inputStyle} value={email}
+                onChange={e => handleEmailChange(e.target.value)} placeholder="you@example.com"
+                onFocus={e => e.currentTarget.style.boxShadow = focusStyle} onBlur={e => e.currentTarget.style.boxShadow = inputStyle.boxShadow} />
               {errors.email && <p className="text-destructive text-xs mt-1.5 font-medium">{errors.email}</p>}
             </div>
 
             {showRoleSelect && (
               <div className="animate-fade-in">
-                <label className="text-sm font-semibold text-foreground mb-2 block">
-                  I am a... <span className="text-primary">*</span>
-                </label>
+                <label className="text-sm font-semibold text-foreground mb-2 block">I am a... <span className="text-primary">*</span></label>
                 <div className="grid grid-cols-3 gap-2">
                   {LOGIN_ROLES.map(r => (
-                    <button
-                      key={r.value}
-                      type="button"
-                      onClick={() => setLoginRole(r.value)}
+                    <button key={r.value} type="button" onClick={() => setLoginRole(r.value)}
                       className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all text-center
-                        ${loginRole === r.value
-                          ? 'border-primary bg-primary/15 shadow-md scale-105'
-                          : 'border-primary/20 bg-background/50 hover:border-primary/50 hover:bg-primary/5'
-                        }`}
-                    >
+                        ${loginRole === r.value ? 'border-primary bg-primary/15 shadow-md scale-105' : 'border-primary/20 bg-background/50 hover:border-primary/50 hover:bg-primary/5'}`}>
                       <span className="text-2xl">{r.emoji}</span>
-                      <span className={`text-xs font-bold ${loginRole === r.value ? 'text-primary' : 'text-foreground'}`}>
-                        {r.label}
-                      </span>
+                      <span className={`text-xs font-bold ${loginRole === r.value ? 'text-primary' : 'text-foreground'}`}>{r.label}</span>
                     </button>
                   ))}
                 </div>
-                <p className="text-xs text-muted-foreground mt-2 text-center">
-                  {LOGIN_ROLES.find(r => r.value === loginRole)?.desc}
-                </p>
+                <p className="text-xs text-muted-foreground mt-2 text-center">{LOGIN_ROLES.find(r => r.value === loginRole)?.desc}</p>
               </div>
             )}
 
             <div>
               <label className="text-sm font-semibold text-foreground mb-2 block">{t('password')}</label>
               <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  className={`${inputClass} pr-12`}
-                  style={inputStyle}
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  onFocus={e => e.currentTarget.style.boxShadow = focusStyle}
-                  onBlur={e => e.currentTarget.style.boxShadow = inputStyle.boxShadow}
-                />
+                <input type={showPassword ? 'text' : 'password'} className={`${inputClass} pr-12`} style={inputStyle} value={password}
+                  onChange={e => setPassword(e.target.value)} placeholder="••••••••"
+                  onFocus={e => e.currentTarget.style.boxShadow = focusStyle} onBlur={e => e.currentTarget.style.boxShadow = inputStyle.boxShadow} />
                 <button type="button" onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition">
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -415,6 +338,34 @@ const Login = () => {
               {t('signIn')}
             </button>
 
+            {googleError && (
+              <div className="bg-destructive/20 border border-destructive/40 text-secondary rounded-xl p-4 text-sm font-medium text-center">
+                {googleError}
+              </div>
+            )}
+
+            {/* ✅ Android-ல் Google button hide */}
+            {!isAndroid && (
+              <>
+                <div className="relative my-6">
+                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border/40"></div></div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="px-3 text-muted-foreground font-medium" style={{ backgroundColor: 'hsl(var(--card))' }}>{t('orContinueWith')}</span>
+                  </div>
+                </div>
+                <button onClick={() => setShowGoogleRoleModal(true)} disabled={googleLoading}
+                  className="w-full border-2 border-primary/30 py-3 rounded-xl font-semibold text-foreground hover:border-primary/60 hover:bg-primary/5 transition flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed">
+                  <svg className="w-5 h-5" viewBox="0 0 24 24">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+                  </svg>
+                  {googleLoading ? 'Signing in...' : t('continueWithGoogle')}
+                </button>
+              </>
+            )}
+
             <p className="text-center text-sm text-muted-foreground mt-6">
               {t('dontHaveAccount')}{' '}
               <button onClick={() => setIsSignup(true)} className="text-primary font-semibold hover:text-secondary transition">{t('signUp')}</button>
@@ -423,7 +374,6 @@ const Login = () => {
         )}
       </div>
 
-      {/* ✅ Google Role Select Modal */}
       {showGoogleRoleModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}>
           <div className="w-full max-w-sm rounded-2xl p-6 border border-primary/30 shadow-2xl animate-fade-in" style={{ backgroundColor: 'hsl(var(--card))' }}>
@@ -434,41 +384,23 @@ const Login = () => {
             </div>
             <div className="grid grid-cols-3 gap-3 mb-6">
               {LOGIN_ROLES.map(r => (
-                <button
-                  key={r.value}
-                  onClick={() => setGoogleRoleSelected(r.value)}
+                <button key={r.value} onClick={() => setGoogleRoleSelected(r.value)}
                   className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all
-                    ${googleRoleSelected === r.value
-                      ? 'border-primary bg-primary/15 shadow-md scale-105'
-                      : 'border-primary/20 bg-background/50 hover:border-primary/50'
-                    }`}
-                >
+                    ${googleRoleSelected === r.value ? 'border-primary bg-primary/15 shadow-md scale-105' : 'border-primary/20 bg-background/50 hover:border-primary/50'}`}>
                   <span className="text-2xl">{r.emoji}</span>
                   <span className={`text-xs font-bold ${googleRoleSelected === r.value ? 'text-primary' : 'text-foreground'}`}>{r.label}</span>
                 </button>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground text-center mb-5">
-              {LOGIN_ROLES.find(r => r.value === googleRoleSelected)?.desc}
-            </p>
+            <p className="text-xs text-muted-foreground text-center mb-5">{LOGIN_ROLES.find(r => r.value === googleRoleSelected)?.desc}</p>
             <div className="flex gap-3">
-              <button
-                onClick={() => setShowGoogleRoleModal(false)}
-                className="flex-1 py-2.5 rounded-xl border-2 border-primary/20 text-muted-foreground hover:bg-muted transition text-sm font-medium"
-              >
+              <button onClick={() => setShowGoogleRoleModal(false)}
+                className="flex-1 py-2.5 rounded-xl border-2 border-primary/20 text-muted-foreground hover:bg-muted transition text-sm font-medium">
                 Cancel
               </button>
-              <button
-                onClick={handleGoogleSignIn}
+              <button onClick={handleGoogleSignIn}
                 className="flex-1 py-2.5 rounded-xl font-bold text-foreground transition flex items-center justify-center gap-2 text-sm"
-                style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)))' }}
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24">
-                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
-                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-                </svg>
+                style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)))' }}>
                 Continue as {LOGIN_ROLES.find(r => r.value === googleRoleSelected)?.label}
               </button>
             </div>
