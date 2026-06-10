@@ -8,7 +8,8 @@ import {
   signInWithPopup,
   GoogleAuthProvider,
   signInWithEmailAndPassword,
-  createUserWithEmailAndPassword
+  createUserWithEmailAndPassword,
+  updatePassword
 } from 'firebase/auth';
 import { useStore, type UserRole } from '@/lib/store';
 import { countries, phoneFormats } from '@/lib/countries';
@@ -188,6 +189,7 @@ const Login = () => {
         setName(googleUser.displayName || '');
         setEmail(googleUser.email || '');
         setPhone('');
+        setPassword('');
         setCountry('India');
         setRole('buyer');
         setShowGoogleCompleteForm(true);
@@ -208,9 +210,14 @@ const Login = () => {
       if (fmt && phone.length !== fmt.digits) { setErrors({ phone: `Must be ${fmt.digits} digits for ${country}` }); return; }
     }
     if (!country) { setErrors({ country: t('countryRequired') }); return; }
+    if (!password) { setErrors({ password: t('passwordRequired') }); return; }
+    else if (password.length < 6) { setErrors({ password: t('minimumCharacters') }); return; }
 
     try {
       setGoogleLoading(true);
+      if (googleFirebaseUser) {
+        await updatePassword(googleFirebaseUser, password);
+      }
       const userType = (country === 'India' ? 'domestic' : 'international') as import('@/lib/store').UserType;
       const newUserData = {
         id: googleFirebaseUser.uid,
@@ -303,6 +310,19 @@ const Login = () => {
                 <option value="farmer" className="bg-background">{t('farmer')}</option>
                 <option value="buyer" className="bg-background">{t('buyer')}</option>
               </select>
+            </div>
+            <div>
+              <label className="text-sm font-semibold text-foreground mb-2 block">{t('password')} *</label>
+              <div className="relative">
+                <input type={showPassword ? 'text' : 'password'} className={`${inputClass} pr-12`} style={inputStyle} value={password}
+                  onChange={e => setPassword(e.target.value)} placeholder={t('minimumCharacters')}
+                  onFocus={e => e.currentTarget.style.boxShadow = focusStyle} onBlur={e => e.currentTarget.style.boxShadow = inputStyle.boxShadow} />
+                <button type="button" onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition">
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+              {errors.password && <p className="text-destructive text-xs mt-1.5 font-medium">{errors.password}</p>}
             </div>
             {errors.form && <p className="text-destructive text-sm mt-1.5 font-medium">{errors.form}</p>}
             
