@@ -1,12 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { getDoc, doc, setDoc } from 'firebase/firestore';
 import { Eye, EyeOff } from 'lucide-react';
 import { db, auth } from '@/lib/firebase';
 import {
-  getRedirectResult,
-  signInWithRedirect,
+  signInWithPopup,
   GoogleAuthProvider,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword
@@ -45,60 +44,6 @@ const Login = () => {
   const [loginRole, setLoginRole] = useState<UserRole>('buyer');
   const [showRoleSelect, setShowRoleSelect] = useState(false);
 
-  useEffect(() => {
-    const handleRedirectResult = async () => {
-      try {
-        setGoogleLoading(true);
-        const result = await getRedirectResult(auth);
-        if (result) {
-          const googleUser = result.user;
-          const userRef = doc(db, 'users', googleUser.uid);
-          const userSnap = await getDoc(userRef);
-          
-          const savedRole = (localStorage.getItem('googleRoleSelected') as UserRole) || 'buyer';
-
-          if (userSnap.exists()) {
-            const userData = userSnap.data();
-            setCurrentUser({
-              id: googleUser.uid,
-              name: userData.name || googleUser.displayName || '',
-              email: userData.email || googleUser.email || '',
-              phone: userData.phone || '',
-              country: userData.country || 'India',
-              role: userData.role || savedRole,
-              status: userData.status || 'pending',
-              userType: userData.userType || 'domestic',
-              verified: true
-            });
-          } else {
-            const newUserData = {
-              id: googleUser.uid,
-              name: googleUser.displayName || '',
-              email: googleUser.email || '',
-              phone: '',
-              country: 'India',
-              role: savedRole,
-              status: 'pending' as const,
-              userType: 'domestic' as const,
-              verified: true,
-              createdAt: new Date().toISOString()
-            };
-            await setDoc(doc(db, 'users', googleUser.uid), newUserData);
-            addUser(newUserData);
-            setCurrentUser(newUserData);
-          }
-          localStorage.removeItem('googleRoleSelected');
-          navigate('/dashboard');
-        }
-      } catch (error: any) {
-        setGoogleError(error.message || 'Google Sign-in failed');
-      } finally {
-        setGoogleLoading(false);
-      }
-    };
-
-    handleRedirectResult();
-  }, [setCurrentUser, navigate, addUser]);
 
   const handleEmailChange = (val: string) => {
     setEmail(val);
@@ -210,15 +155,49 @@ const Login = () => {
 
   const handleGoogleSignIn = async () => {
     setShowGoogleRoleModal(false);
-    localStorage.setItem('googleRoleSelected', googleRoleSelected);
     try {
       setGoogleLoading(true);
       setGoogleError('');
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
-      await signInWithRedirect(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      const googleUser = result.user;
+      const userRef = doc(db, 'users', googleUser.uid);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        const userData = userSnap.data();
+        setCurrentUser({
+          id: googleUser.uid,
+          name: userData.name || googleUser.displayName || '',
+          email: userData.email || googleUser.email || '',
+          phone: userData.phone || '',
+          country: userData.country || 'India',
+          role: userData.role || googleRoleSelected,
+          status: userData.status || 'pending',
+          userType: userData.userType || 'domestic',
+          verified: true
+        });
+      } else {
+        const newUserData = {
+          id: googleUser.uid,
+          name: googleUser.displayName || '',
+          email: googleUser.email || '',
+          phone: '',
+          country: 'India',
+          role: googleRoleSelected,
+          status: 'pending' as const,
+          userType: 'domestic' as const,
+          verified: true,
+          createdAt: new Date().toISOString()
+        };
+        await setDoc(doc(db, 'users', googleUser.uid), newUserData);
+        addUser(newUserData);
+        setCurrentUser(newUserData);
+      }
+      navigate('/dashboard');
     } catch (error: any) {
       setGoogleError(error.message || 'Google Sign-in failed');
+    } finally {
       setGoogleLoading(false);
     }
   };
