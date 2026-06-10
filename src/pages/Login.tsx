@@ -115,16 +115,11 @@ const Login = () => {
       }
     } catch (error: any) {
       if (error.code === 'auth/user-not-found') {
-        setErrors({ email: 'Account not found. Please Sign Up first to create your account.' });
+        setErrors({ email: 'Account not found. Please Sign Up first.' });
       } else if (error.code === 'auth/wrong-password') {
-        setErrors({ password: t('login_wrong_password') });
+        setErrors({ password: 'Wrong password. Please try again.' });
       } else if (error.code === 'auth/invalid-credential') {
-        const userExists = users.some(u => u.email.toLowerCase() === email.toLowerCase());
-        if (!userExists) {
-          setErrors({ email: 'Account not found. Please Sign Up first to create your account.' });
-        } else {
-          setErrors({ email: 'Invalid credentials. If you registered with Google, please use "Continue with Google".' });
-        }
+        setErrors({ email: "This email is registered with Google. Please use 'Continue with Google' button." });
       } else if (error.code === 'auth/invalid-email') {
         setErrors({ email: t('login_invalid_email') });
       } else if (error.code === 'auth/too-many-requests') {
