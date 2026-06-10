@@ -18,7 +18,6 @@ import LanguageSwitcher from '@/components/LanguageSwitcher';
 const LOGIN_ROLES: { value: UserRole; label: string; emoji: string; desc: string }[] = [
   { value: 'buyer',  label: 'Buyer',  emoji: '🛒', desc: 'Purchase agricultural products' },
   { value: 'farmer', label: 'Farmer', emoji: '🌾', desc: 'Sell your farm produce' },
-  { value: 'admin',  label: 'Admin',  emoji: '🛡️', desc: 'Manage the platform' },
 ];
 
 const isAndroid = /android/i.test(navigator.userAgent); // ✅ Android check
