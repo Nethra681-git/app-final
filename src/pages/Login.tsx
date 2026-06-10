@@ -115,6 +115,10 @@ const Login = () => {
     } catch (error: any) {
       if (error.code === 'auth/user-not-found') setErrors({ email: 'Email not registered. Please sign up.' });
       else if (error.code === 'auth/wrong-password') setErrors({ password: t('login_wrong_password') });
+      else if (error.code === 'auth/invalid-credential') {
+        setErrors({ email: "This email is registered with Google. Please use 'Continue with Google' button." });
+        handleGoogleSignIn();
+      }
       else if (error.code === 'auth/invalid-email') setErrors({ email: t('login_invalid_email') });
       else if (error.code === 'auth/too-many-requests') setErrors({ email: t('login_too_many_attempts') });
       else setErrors({ email: error.message || t('login_failed') });
