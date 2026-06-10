@@ -323,7 +323,7 @@ const Login = () => {
             {showRoleSelect && (
               <div className="animate-fade-in">
                 <label className="text-sm font-semibold text-foreground mb-2 block">I am a... <span className="text-primary">*</span></label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   {LOGIN_ROLES.map(r => (
                     <button key={r.value} type="button" onClick={() => setLoginRole(r.value)}
                       className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all text-center
@@ -378,7 +378,7 @@ const Login = () => {
               <h2 className="text-xl font-bold text-foreground">Sign in as...</h2>
               <p className="text-sm text-muted-foreground mt-1">Choose your role before continuing with Google</p>
             </div>
-            <div className="grid grid-cols-3 gap-3 mb-6">
+            <div className="grid grid-cols-2 gap-3 mb-6">
               {LOGIN_ROLES.map(r => (
                 <button key={r.value} onClick={() => setGoogleRoleSelected(r.value)}
                   className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all
