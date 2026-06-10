@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { getDoc, doc, setDoc } from 'firebase/firestore';
+import { getDoc, doc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { Eye, EyeOff } from 'lucide-react';
 import { db, auth } from '@/lib/firebase';
 import {
@@ -119,7 +119,17 @@ const Login = () => {
       } else if (error.code === 'auth/wrong-password') {
         setErrors({ password: 'Wrong password. Please try again.' });
       } else if (error.code === 'auth/invalid-credential') {
-        setErrors({ email: "This email is registered with Google. Please use 'Continue with Google' button." });
+        try {
+          const q = query(collection(db, 'users'), where('email', '==', email));
+          const querySnapshot = await getDocs(q);
+          if (!querySnapshot.empty) {
+            setErrors({ email: "This email is registered with Google. Please use 'Continue with Google' button." });
+          } else {
+            setErrors({ email: 'Account not found. Please Sign Up first to create your account.' });
+          }
+        } catch (err) {
+          setErrors({ email: 'Invalid credentials or account not found.' });
+        }
       } else if (error.code === 'auth/invalid-email') {
         setErrors({ email: t('login_invalid_email') });
       } else if (error.code === 'auth/too-many-requests') {
