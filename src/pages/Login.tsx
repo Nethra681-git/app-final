@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { getAuth, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { getDoc, doc, setDoc } from 'firebase/firestore';
 import { Eye, EyeOff } from 'lucide-react';
 import app, { db } from '@/lib/firebase';
@@ -39,6 +39,62 @@ const Login = () => {
 
   const auth = getAuth(app);
   const googleProvider = new GoogleAuthProvider();
+
+  useEffect(() => {
+    const handleRedirectResult = async () => {
+      try {
+        setGoogleLoading(true);
+        const result = await getRedirectResult(auth);
+        if (result) {
+          const googleUser = result.user;
+          const userRef = doc(db, 'users', googleUser.uid);
+          const userSnap = await getDoc(userRef);
+          
+          const savedRole = (localStorage.getItem('googleRoleSelected') as UserRole) || 'buyer';
+
+          if (userSnap.exists()) {
+            const userData = userSnap.data();
+            setCurrentUser({
+              id: googleUser.uid,
+              name: userData.name || googleUser.displayName || '',
+              email: userData.email || googleUser.email || '',
+              phone: userData.phone || '',
+              country: userData.country || 'India',
+              role: userData.role || savedRole,
+              status: userData.status || 'pending',
+              userType: userData.userType || 'domestic',
+              verified: true
+            });
+            navigate('/dashboard');
+          } else {
+            const newUserData = {
+              id: googleUser.uid,
+              name: googleUser.displayName || '',
+              email: googleUser.email || '',
+              phone: '',
+              country: 'India',
+              role: savedRole,
+              status: 'pending' as const,
+              userType: 'domestic' as const,
+              verified: true,
+              createdAt: new Date().toISOString()
+            };
+            await setDoc(doc(db, 'users', googleUser.uid), newUserData);
+            addUser(newUserData);
+            setCurrentUser(newUserData);
+            navigate('/dashboard');
+          }
+          localStorage.removeItem('googleRoleSelected');
+        }
+      } catch (error: any) {
+        setGoogleError(error.message || 'Google Sign-in failed');
+      } finally {
+        setGoogleLoading(false);
+      }
+    };
+
+    handleRedirectResult();
+  }, [auth, setCurrentUser, navigate, addUser]);
 
   const handleEmailChange = (val: string) => {
     setEmail(val);
@@ -152,54 +208,15 @@ const Login = () => {
     setShowGoogleRoleModal(true);
   };
 
-  // ✅ Fixed: signInWithPopup — no redirect, no sessionStorage needed
   const handleGoogleSignIn = async () => {
     setShowGoogleRoleModal(false);
+    localStorage.setItem('googleRoleSelected', googleRoleSelected);
     try {
       setGoogleLoading(true);
       setGoogleError('');
-
-      const result = await signInWithPopup(auth, googleProvider);
-      const googleUser = result.user;
-
-      const userRef = doc(db, 'users', googleUser.uid);
-      const userSnap = await getDoc(userRef);
-
-      if (userSnap.exists()) {
-        const userData = userSnap.data();
-        setCurrentUser({
-          id: googleUser.uid,
-          name: userData.name || googleUser.displayName || '',
-          email: userData.email || googleUser.email || '',
-          phone: userData.phone || '',
-          country: userData.country || 'India',
-          role: userData.role || googleRoleSelected,
-          status: userData.status || 'pending',
-          userType: userData.userType || 'domestic',
-          verified: true
-        });
-        navigate('/dashboard');
-      } else {
-        const newUserData = {
-          id: googleUser.uid,
-          name: googleUser.displayName || '',
-          email: googleUser.email || '',
-          phone: '',
-          country: 'India',
-          role: googleRoleSelected,
-          status: 'pending' as const,
-          userType: 'domestic' as const,
-          verified: true,
-          createdAt: new Date().toISOString()
-        };
-        await setDoc(doc(db, 'users', googleUser.uid), newUserData);
-        addUser(newUserData);
-        setCurrentUser(newUserData);
-        navigate('/dashboard');
-      }
+      await signInWithRedirect(auth, googleProvider);
     } catch (error: any) {
       setGoogleError(error.message || 'Google Sign-in failed');
-    } finally {
       setGoogleLoading(false);
     }
   };
@@ -301,6 +318,32 @@ const Login = () => {
         ) : (
           /* ─── LOGIN FORM ─── */
           <div className="space-y-5">
+            <button onClick={handleGoogleButtonClick} disabled={googleLoading}
+              className="w-full border-2 border-primary/30 py-3 rounded-xl font-semibold text-foreground hover:border-primary/60 hover:bg-primary/5 transition flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed">
+              <svg className="w-5 h-5" viewBox="0 0 24 24">
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
+                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+              </svg>
+              {googleLoading ? 'Signing in...' : t('continueWithGoogle')}
+            </button>
+
+            {googleError && (
+              <div className="bg-destructive/20 border border-destructive/40 text-secondary rounded-xl p-4 text-sm font-medium text-center">
+                {googleError}
+              </div>
+            )}
+
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-border/40"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-3 text-muted-foreground font-medium" style={{ backgroundColor: 'hsl(var(--card))' }}>{t('orContinueWith')} Email</span>
+              </div>
+            </div>
+
             <div>
               <label className="text-sm font-semibold text-foreground mb-2 block">{t('emailAddress')}</label>
               <input
@@ -370,32 +413,6 @@ const Login = () => {
             <button onClick={handleLogin} className="w-full py-3 rounded-xl font-bold text-foreground transition transform hover:scale-105"
               style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)))', boxShadow: '0 0 30px rgba(34, 197, 94, 0.3)', textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
               {t('signIn')}
-            </button>
-
-            {googleError && (
-              <div className="bg-destructive/20 border border-destructive/40 text-secondary rounded-xl p-4 text-sm font-medium text-center">
-                {googleError}
-              </div>
-            )}
-
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border/40"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-3 text-muted-foreground font-medium" style={{ backgroundColor: 'hsl(var(--card))' }}>{t('orContinueWith')}</span>
-              </div>
-            </div>
-
-            <button onClick={handleGoogleButtonClick} disabled={googleLoading}
-              className="w-full border-2 border-primary/30 py-3 rounded-xl font-semibold text-foreground hover:border-primary/60 hover:bg-primary/5 transition flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed">
-              <svg className="w-5 h-5" viewBox="0 0 24 24">
-                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
-                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-              </svg>
-              {googleLoading ? 'Signing in...' : t('continueWithGoogle')}
             </button>
 
             <p className="text-center text-sm text-muted-foreground mt-6">

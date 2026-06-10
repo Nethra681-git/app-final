@@ -255,17 +255,20 @@ app.post('/api/razorpay/create-order', async (req, res) => {
     
     const { amount, currency = 'INR', receipt, notes = {} } = req.body;
 
-    // Validate amount (in smallest unit - paise for INR)
-    if (!amount || amount < 1) {
+    // ✅ FIX: Add console.log of received amount
+    console.log('Received amount:', amount, 'paise =', amount/100, 'rupees');
+
+    // ✅ FIX: Enhanced amount validation (amount comes in paise from frontend)
+    if (!amount || amount < 100 || amount > 1000000000) { // 1-10,000,000 INR range
       return res.status(400).json({
         success: false,
-        message: 'Invalid amount',
+        message: 'Invalid amount. Must be between ₹1 and ₹10,000,000',
       });
     }
 
-    // Create order with Razorpay
+    // ✅ FIX: Amount already in paise from frontend, no need to multiply by 100
     const orderOptions = {
-      amount: Math.round(amount * 100), // Convert to paise
+      amount: Math.round(amount), // Already in paise, just ensure it's an integer
       currency,
       receipt: receipt || `receipt_${Date.now()}`,
       notes: {

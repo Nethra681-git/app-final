@@ -24,11 +24,15 @@ const OrderPage = () => {
   if (!product || !currentUser) return <div className="text-center py-20 text-muted-foreground">Not available</div>;
 
   const price = marketType === 'domestic' ? product.domesticPrice : product.exportPrice;
-  const total = price * quantity;
+  // ✅ FIX: Calculate total in paise to avoid floating point precision errors
+  const totalInRupees = price * quantity;
+  const totalInPaise = Math.round(totalInRupees * 100);
+  const total = totalInRupees; // Keep for display purposes
   const upiLink = `upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(COMPANY_NAME)}&am=${total}&cu=INR&tn=${encodeURIComponent(`Order ${orderId}`)}`;
 
   const handleProceedToPayment = () => {
-    const oid = `ORD-${Date.now()}`;
+    // ✅ FIX: Generate unique order ID to prevent collisions
+    const oid = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     // ✅ KEY FIX: Firebase Auth UID use பண்றோம் — Firestore-ல் store ஆன buyerId-உடன் match ஆகும்
     const firebaseUid = auth.currentUser?.uid || currentUser.id;
@@ -39,7 +43,8 @@ const OrderPage = () => {
       productName: product.name,
       quantity,
       price,
-      total,
+      total: totalInRupees, // Store rupees for display
+      totalInPaise, // Store paise for payment processing
       buyerId: firebaseUid, // ✅ Firebase Auth UID
       buyerName: currentUser.name,
       buyerEmail: currentUser.email,
@@ -72,7 +77,7 @@ const OrderPage = () => {
     addNotification({
       id: `n${Date.now() + 1}`,
       title: 'New Order Placed',
-      message: `${currentUser.name} placed order for ${product.name} (${quantity} ${product.unit}) — ₹${total.toLocaleString()}`,
+      message: `${currentUser.name} placed order for ${product.name} (${quantity} ${product.unit}) — ₹${totalInRupees.toLocaleString()}`,
       timestamp: new Date().toLocaleString(),
       read: false,
       targetRoles: ['admin'],
@@ -94,7 +99,7 @@ const OrderPage = () => {
       buyerName: currentUser.name,
       buyerEmail: currentUser.email,
       buyerPhone: currentUser.phone,
-      amount: total,
+      amount: totalInRupees, // Use rupees for display/storage
       method: 'upi',
       transactionId: txnId.trim(),
       utrNumber: txnId.trim(),
@@ -107,7 +112,7 @@ const OrderPage = () => {
     addNotification({
       id: `n${Date.now() + 2}`,
       title: 'Payment Received',
-      message: `${currentUser.name} paid ₹${total.toLocaleString()} via UPI for order ${orderId}. UTR: ${txnId.trim()}`,
+      message: `${currentUser.name} paid ₹${totalInRupees.toLocaleString()} via UPI for order ${orderId}. UTR: ${txnId.trim()}`,
       timestamp: new Date().toLocaleString(),
       read: false,
       targetRoles: ['admin'],
@@ -132,8 +137,11 @@ const OrderPage = () => {
       const res = await fetch("http://localhost:3001/api/razorpay/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: total })
+        body: JSON.stringify({ amount: totalInPaise })
       });
+
+      // ✅ FIX: Add console.log before sending to backend
+      console.log('Amount being sent:', totalInPaise, 'paise =', totalInPaise/100, 'rupees');
 
       const data = await res.json();
       if (!data.success) { alert("Error creating order"); return; }
@@ -154,7 +162,7 @@ const OrderPage = () => {
             buyerName: currentUser.name,
             buyerEmail: currentUser.email,
             buyerPhone: currentUser.phone,
-            amount: total,
+            amount: totalInRupees, // Use rupees for display/storage
             method: 'razorpay',
             transactionId: response.razorpay_payment_id,
             utrNumber: response.razorpay_payment_id,
