@@ -3,14 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { getDoc, doc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { Eye, EyeOff } from 'lucide-react';
-import { db, auth } from '@/lib/firebase';
+import { db, auth, googleProvider } from '@/lib/firebase';
 import {
   signInWithPopup,
+  signInWithRedirect,
   GoogleAuthProvider,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  updatePassword
+  updatePassword,
+  getRedirectResult
 } from 'firebase/auth';
+import { Capacitor } from '@capacitor/core';
 import { useStore, type UserRole } from '@/lib/store';
 import { countries, phoneFormats } from '@/lib/countries';
 import logo from '@/assets/logo.webp';
@@ -178,9 +181,23 @@ const Login = () => {
     try {
       setGoogleLoading(true);
       setGoogleError('');
-      const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: 'select_account' });
-      const result = await signInWithPopup(auth, provider);
+      
+      // Check if running in Capacitor native app
+      const isNativeApp = Capacitor.isNativePlatform();
+      let result;
+      
+      if (isNativeApp) {
+        // Use redirect flow for native apps
+        await signInWithRedirect(auth, googleProvider);
+        // Handle redirect result
+        result = await getRedirectResult(auth);
+      } else {
+        // Use popup flow for web
+        result = await signInWithPopup(auth, googleProvider);
+      }
+      
+      if (!result) return; // Redirect result not ready yet
+      
       const googleUser = result.user;
       const userRef = doc(db, 'users', googleUser.uid);
       const userSnap = await getDoc(userRef);
