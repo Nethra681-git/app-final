@@ -5,8 +5,9 @@ const config: CapacitorConfig = {
   appName: 'shastikaapp',
   webDir: 'dist',
   server: {
+    url: 'https://app-final-eta.vercel.app',
     androidScheme: 'https',
-    cleartext: true
+    cleartext: false
   },
   android: {
     allowMixedContent: true
