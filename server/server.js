@@ -37,11 +37,24 @@ const PORT = process.env.PORT || 3001;
 
 // Create HTTP server with Socket.io
 const httpServer = createServer(app);
+
 const corsOptions = {
-  origin: [
-    'https://app-final-eta.vercel.app',
-    'http://localhost:5173'
-  ],
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      'https://app-final-eta.vercel.app',
+      'http://localhost:5173',
+      'http://localhost',
+      'http://127.0.0.1',
+      'http://10.0.2.2',
+      'capacitor://localhost',
+    ];
+    // Allow requests with no origin (native apps sometimes send none)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST'],
   credentials: true,
 };
