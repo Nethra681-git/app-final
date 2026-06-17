@@ -149,7 +149,6 @@ export const useStore = create<AppState>((set) => ({
   currentUser: null,
   users: [],
   products: defaultProducts,
-  setProducts: (products) => set({ products }),
   orders: [],
   payments: [],
   messages: [],
@@ -192,5 +191,4 @@ export const useStore = create<AppState>((set) => ({
   addMessage: (msg) => set((s) => ({ messages: [...s.messages, msg] })),
   addNotification: (n) => set((s) => ({ notifications: [...s.notifications, n] })),
   markNotificationRead: (id) => set((s) => ({ notifications: s.notifications.map(n => n.id === id ? { ...n, read: true } : n) })),
-  setProducts: (products) => set({ products }),
 }));
