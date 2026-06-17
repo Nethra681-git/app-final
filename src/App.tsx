@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useStore } from "@/lib/store";
+import { useStore, loadProducts } from "@/lib/store";
 import { useProtectedRoute } from "@/hooks/useProtectedRoute";
 import { useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
@@ -123,7 +123,14 @@ const AuthInitializer = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const App = () => (
+const App = () => {
+  useEffect(() => {
+    loadProducts().then((products) => {
+      useStore.getState().setProducts(products);
+    });
+  }, []);
+
+  return (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
@@ -154,6 +161,7 @@ const App = () => (
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
-);
+  );
+};
 
 export default App;

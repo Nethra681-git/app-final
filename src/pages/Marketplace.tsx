@@ -1,9 +1,9 @@
-import { useNavigate } from "react-router-dom";
+﻿import { useNavigate } from "react-router-dom";
 import { useStore, Product } from "@/lib/store";
 import { useTranslation } from "react-i18next";
 import { Package, Users, ShoppingCart, TrendingUp, Badge, Edit, IndianRupee, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
-import { collection, onSnapshot } from "firebase/firestore";
+import { collection, onSnapshot, setDoc} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -88,10 +88,10 @@ const Marketplace = () => {
     'Semi husked coconuts retaining protective layers for longer shelf life.': 'desc_semiHuskedCoconut',
     'Completely dehusked and polished coconuts ready for retail markets.': 'desc_dehuskedCoconut',
     'Large sweet watermelons, juicy and refreshing for summer export demand.': 'desc_watermelon',
-    'Premium Black Diamond variety – export grade organic, naturally grown.': 'desc_blackDiamondWatermelon',
+    'Premium Black Diamond variety â€“ export grade organic, naturally grown.': 'desc_blackDiamondWatermelon',
     'Bright yellow pumpkins rich in nutrients. Used in soups and curries.': 'desc_yellowPumpkin',
     'Ash gourd / white pumpkin known for medicinal and culinary uses.': 'desc_whitePumpkin',
-    'Yellow organic cucumbers – hygienic processing, excellent shelf life.': 'desc_yellowCucumber',
+    'Yellow organic cucumbers â€“ hygienic processing, excellent shelf life.': 'desc_yellowCucumber',
     'Fresh vine-ripened tomatoes for cooking and processing.': 'desc_tomato',
   };
 
@@ -177,7 +177,7 @@ const Marketplace = () => {
 
     // Redirect to payments
     setTimeout(() => {
-      alert(`✅ ` + t('order_placed') + `! ` + t('order_id') + `: ${orderId}\n` + t('loading') + `...`);
+      alert(`âœ… ` + t('order_placed') + `! ` + t('order_id') + `: ${orderId}\n` + t('loading') + `...`);
       navigate('/payments');
     }, 300);
   };
@@ -300,7 +300,7 @@ const Marketplace = () => {
               onClick={() => navigate(`/product/${product.id}`)}
               className="flex-1 btn-primary py-2.5 text-sm font-semibold rounded-lg transition-all duration-200"
             >
-              {t('view_details')} →
+              {t('view_details')} â†’
             </button>
             {!isFarmer && !isAdmin && (
               <button
@@ -333,7 +333,7 @@ const Marketplace = () => {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-6">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="text-4xl">🌾</div>
+                  <div className="text-4xl"></div>
                   <h1 className="text-4xl sm:text-5xl font-bold text-foreground">
                     {t('premium_marketplace')}
                   </h1>
@@ -415,7 +415,7 @@ const Marketplace = () => {
                     }))}
                     className="btn-secondary px-4 py-2 rounded-lg"
                   >
-                    −
+                    âˆ’
                   </button>
                   <input
                     type="number"

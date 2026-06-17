@@ -45,7 +45,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
             <img src="/src/assets/logo.png" alt="Shastika Logo" className="h-8 w-8" />
             <div>
               <p className="text-white font-bold text-sm leading-tight">{t('shastika')} GLOBAL</p>
-              <p className="text-green-300 text-xs">IMPEX PVT LTD</p>
+              <p className="text-green-300 text-xs">GLOBAL IMPEX PVT LTD</p>
             </div>
           </div>
           <button onClick={() => setSidebarOpen(false)} className="md:hidden p-1 hover:bg-white/10 rounded-lg transition">

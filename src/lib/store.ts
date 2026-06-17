@@ -105,6 +105,7 @@ interface AppState {
   currentUser: User | null;
   users: User[];
   products: Product[];
+  setProducts: (products: Product[]) => void;
   orders: Order[];
   payments: Payment[];
   messages: ChatMessage[];
@@ -133,9 +134,14 @@ const defaultProducts: Product[] = PRODUCTS as any;
 export const loadProducts = async () => {
   const snapshot = await getDocs(collection(db, "products"));
 
-  return snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
+  const firestoreData: Record<string, any> = {};
+  snapshot.docs.forEach(doc => {
+    firestoreData[doc.id] = doc.data();
+  });
+
+  return defaultProducts.map(p => ({
+    ...p,
+    ...(firestoreData[p.id] || {})
   }));
 };
 
@@ -143,6 +149,7 @@ export const useStore = create<AppState>((set) => ({
   currentUser: null,
   users: [],
   products: defaultProducts,
+  setProducts: (products) => set({ products }),
   orders: [],
   payments: [],
   messages: [],
