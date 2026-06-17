@@ -44,6 +44,7 @@ const corsOptions = {
     'http://localhost:8080',
     'http://localhost',
     'capacitor://localhost',
+    'https://localhost',
     'http://10.0.2.2',
     'http://10.0.2.2:5173',
     'http://10.0.2.2:8080',
