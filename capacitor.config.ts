@@ -1,16 +1,11 @@
-import type { CapacitorConfig } from '@capacitor/cli';
+﻿import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.shastikaapp.global',
-  appName: 'shastikaapp',
+  appId: 'com.shastika.shastikaapp',
+  appName: 'Shastika Global Impex Pvt Ltd',
   webDir: 'dist',
   server: {
-    url: 'https://app-final-eta.vercel.app',
-    androidScheme: 'https',
-    cleartext: false
-  },
-  android: {
-    allowMixedContent: true
+    androidScheme: 'https'
   }
 };
 

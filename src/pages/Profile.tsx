@@ -12,7 +12,7 @@ const Profile = () => {
     { icon: ShieldCheck, label: t('role'), value: currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1) },
     { icon: Phone, label: t('phone'), value: currentUser.phone || 'N/A' },
     { icon: Globe, label: t('country'), value: currentUser.country },
-    { icon: Building, label: t('company_name'), value: 'SHASTIKA GLOBAL IMPEX PRIVATE LIMITED' },
+    { icon: Building, label: t('company_name'), value: 'Shastika Global Impex Pvt Ltd' },
   ];
 
   return (

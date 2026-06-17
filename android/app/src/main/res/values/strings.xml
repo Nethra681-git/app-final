@@ -1,7 +1,8 @@
-<?xml version='1.0' encoding='utf-8'?>
+﻿<?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">shastikaapp</string>
-    <string name="title_activity_main">shastikaapp</string>
+    <string name="app_name">Shastika Global Impex Pvt Ltd</string>
+    <string name="title_activity_main">Shastika Global Impex Pvt Ltd</string>
     <string name="package_name">com.shastikaapp.global</string>
     <string name="custom_url_scheme">com.shastikaapp.global</string>
 </resources>
+
