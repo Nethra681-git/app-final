@@ -6,14 +6,13 @@ import { Eye, EyeOff } from 'lucide-react';
 import { db, auth, googleProvider } from '@/lib/firebase';
 import {
   signInWithPopup,
-  signInWithRedirect,
   GoogleAuthProvider,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  updatePassword,
-  getRedirectResult
+  updatePassword
 } from 'firebase/auth';
 import { Capacitor } from '@capacitor/core';
+import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import { useStore, type UserRole } from '@/lib/store';
 import { countries, phoneFormats } from '@/lib/countries';
 import logo from '@/assets/logo.webp';
@@ -184,21 +183,24 @@ const Login = () => {
       
       // Check if running in Capacitor native app
       const isNativeApp = Capacitor.isNativePlatform();
-      let result;
+      let googleUser: any = null;
       
       if (isNativeApp) {
-        // Use redirect flow for native apps
-        await signInWithRedirect(auth, googleProvider);
-        // Handle redirect result
-        result = await getRedirectResult(auth);
+        const nativeResult = await FirebaseAuthentication.signInWithGoogle();
+        if (nativeResult?.user) {
+          googleUser = {
+            uid: nativeResult.user.uid,
+            displayName: nativeResult.user.displayName,
+            email: nativeResult.user.email,
+          };
+        }
       } else {
-        // Use popup flow for web
-        result = await signInWithPopup(auth, googleProvider);
+        const result = await signInWithPopup(auth, googleProvider);
+        googleUser = result.user;
       }
       
-      if (!result) return; // Redirect result not ready yet
+      if (!googleUser) return;
       
-      const googleUser = result.user;
       const userRef = doc(db, 'users', googleUser.uid);
       const userSnap = await getDoc(userRef);
       if (userSnap.exists()) {
