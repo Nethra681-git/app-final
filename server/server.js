@@ -545,7 +545,8 @@ app.use((req, res) => {
 
 // Start server with port conflict prevention
 const startServer = (port) => {
-  httpServer.listen(port, () => {
+  httpServer.listen(port, "0.0.0.0", () => {
+  console.log(`🚀 Server running on port ${port}`);
     console.log('\n🚀 Server is running successfully!');
     console.log(`   URL: http://localhost:${port}`);
     console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
