@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, onSnapshot, updateDoc, doc, getDocs, query, where } from 'firebase/firestore';
+import { collection, onSnapshot, updateDoc, deleteDoc, doc, getDocs, query, where } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { useStore, type ShipmentStatus, type PaymentStatus } from '@/lib/store';
 import { generatePaymentReceipt } from '@/lib/receipt';
 import {
   Users, Package, ClipboardList, Truck, DollarSign, Bell, TrendingUp,
-  Check, X, Ban, Download, Shield, Edit2, Save, AlertCircle, MessageCircle,
+  Check, X, Ban, Trash2, Download, Shield, Edit2, Save, AlertCircle, MessageCircle,
   ChevronRight
 } from 'lucide-react';
 
@@ -134,6 +134,16 @@ const AdminPanel = () => {
     }
   };
 
+  const handleDelete = async (userId: string, userName?: string) => {
+    const confirmed = window.confirm(`Permanently delete ${userName || 'this user'}? This cannot be undone.`);
+    if (!confirmed) return;
+    try {
+      await deleteDoc(doc(db, 'users', userId));
+    } catch (err) {
+      setErrorMessage(`Error deleting user: ${err instanceof Error ? err.message : 'Unknown'}`);
+    }
+  };
+
   // ✅ Update shipment status - uses firestoreDocId (real Firestore doc ID)
   const handleShipmentStatusUpdate = async (firestoreDocId: string, displayId: string, newStatus: ShipmentStatus) => {
     setUpdatingOrderId(firestoreDocId);
@@ -255,6 +265,7 @@ const AdminPanel = () => {
                 <button onClick={() => handleApprove(u.id)} className="p-2 rounded-lg bg-success/10 text-success hover:bg-success/20 transition" title="Approve"><Check className="w-4 h-4" /></button>
                 <button onClick={() => handleReject(u.id)} className="p-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition" title="Reject"><X className="w-4 h-4" /></button>
                 <button onClick={() => handleDisable(u.id)} className="p-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 transition" title="Disable"><Ban className="w-4 h-4" /></button>
+                <button onClick={() => handleDelete(u.id, u.name)} className="p-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition" title="Delete"><Trash2 className="w-4 h-4" /></button>
                 <button onClick={() => navigate(`/chat?userId=${u.id}`)} className="p-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition" title="Message"><MessageCircle className="w-4 h-4" /></button>
               </div>
             </div>
